@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(git checkout:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nPhase 1: Add TypeScript type definitions and improve type safety\n\n- Created comprehensive type definitions in src/types/index.ts\n- Replaced all ''any'' types with proper TypeScript interfaces\n- Added types for User, Student, Supervisor, Administrator, CollabSpace,\n  Question, QuestionSet, Quiz, Batch, QuizAttempt, and more\n- Fixed TypeScript compilation errors throughout App.tsx\n- Removed unused imports and variables\n- Removed deprecated batch.subject references\n- Added @types/sql.js for better SQL.js type support\n- Deleted backup files \\(App - Copy*.tsx\\) causing build errors\n- Build now compiles successfully with strict type checking\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+    ]
+  }
+}

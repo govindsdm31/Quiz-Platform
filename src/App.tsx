@@ -1,5 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { AlertCircle, Users, BookOpen, ClipboardList, Settings, LogOut, Play, Square, Clock, CheckCircle, XCircle, Eye, Plus, Trash2, Edit, UserPlus, Download } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { AlertCircle, Users, Settings, LogOut, Play, Square, Clock, Eye, Plus, Trash2, UserPlus, Download } from 'lucide-react';
+import type {
+  User,
+  Student,
+  Supervisor,
+  Administrator,
+  CollabSpace,
+  Question,
+  QuestionSet,
+  Quiz,
+  Batch,
+  QuizAttempt,
+  LoginForm,
+  ViewType,
+  CSVUploadResult,
+  StudentCreationResult,
+  ActiveQuizSession
+} from './types';
 
 /*
   Persist platform data into an in-browser SQLite database using sql.js.
@@ -13,25 +30,24 @@ const DB_STORAGE_KEY = 'sqljs-db';
 const PLATFORM_DATA_KEY = 'platform-data';
 
 const QuizPlatform = () => {
-    const [currentUser, setCurrentUser] = useState<any>(null);
-    const [users, setUsers] = useState<any[]>([]);
-    const [collabSpaces, setCollabSpaces] = useState<any[]>([]);
-    const [administrators, setAdministrators] = useState<any[]>([]);
-    const [questions, setQuestions] = useState<any[]>([]);
-    const [quizzes, setQuizzes] = useState<any[]>([]);
-    const [batches, setBatches] = useState<any[]>([]);
-    const [students, setStudents] = useState<any[]>([]);
-    const [supervisors, setSupervisors] = useState<any[]>([]);
-    const [questionSets, setQuestionSets] = useState<any[]>([]); // question sets created via CSV import
-    const [activeQuiz, setActiveQuiz] = useState<any>(null);
-    const [quizAttempts, setQuizAttempts] = useState<any[]>([]);
-    const [currentAttempt, setCurrentAttempt] = useState<any | null>(null);
-    const [currentView, setCurrentView] = useState('login');
-    const [loginForm, setLoginForm] = useState({ username: '', password: '' });
-    const [selectedCollabSpace, setSelectedCollabSpace] = useState<any>(null);
-    const [error, setError] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-    const [rememberMe, setRememberMe] = useState(false);
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [users, setUsers] = useState<User[]>([]);
+    const [collabSpaces, setCollabSpaces] = useState<CollabSpace[]>([]);
+    const [administrators, setAdministrators] = useState<Administrator[]>([]);
+    const [questions, setQuestions] = useState<Question[]>([]);
+    const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+    const [batches, setBatches] = useState<Batch[]>([]);
+    const [students, setStudents] = useState<Student[]>([]);
+    const [supervisors, setSupervisors] = useState<Supervisor[]>([]);
+    const [questionSets, setQuestionSets] = useState<QuestionSet[]>([]); // question sets created via CSV import
+    const [activeQuiz, setActiveQuiz] = useState<ActiveQuizSession | null>(null);
+    const [quizAttempts, setQuizAttempts] = useState<QuizAttempt[]>([]);
+    const [currentAttempt, setCurrentAttempt] = useState<QuizAttempt | null>(null);
+    const [currentView, setCurrentView] = useState<ViewType>('login');
+    const [loginForm, setLoginForm] = useState<LoginForm>({ username: '', password: '' });
+    const [error, setError] = useState<string>('');
+    const [showPassword, setShowPassword] = useState<boolean>(false);
+    const [rememberMe, setRememberMe] = useState<boolean>(false);
 
     // support remounting role views when going "home" so internal view state resets
     const [homeKey, setHomeKey] = useState(0);
@@ -170,11 +186,11 @@ const QuizPlatform = () => {
                     writePlatformDataToDb(data);
                 } else {
                     // Create initial owner user and save into DB
-                    const initialUsers = [{
+                    const initialUsers: User[] = [{
                         id: 'owner-1',
                         username: 'owner',
                         password: 'owner123',
-                        role: 'owner',
+                        role: 'owner' as const,
                         active: true
                     }];
                     const data = {
@@ -195,11 +211,11 @@ const QuizPlatform = () => {
             } catch (err) {
                 console.error('Storage error:', err);
                 // fallback in-memory initial user
-                const initialUsers = [{
+                const initialUsers: User[] = [{
                     id: 'owner-1',
                     username: 'owner',
                     password: 'owner123',
-                    role: 'owner',
+                    role: 'owner' as const,
                     active: true
                 }];
                 setUsers(initialUsers);
@@ -328,7 +344,6 @@ const QuizPlatform = () => {
     const handleLogout = () => {
         setCurrentUser(null);
         setCurrentView('login');
-        setSelectedCollabSpace(null);
         setActiveQuiz(null);
         setCurrentAttempt(null);
     };
@@ -342,7 +357,7 @@ const QuizPlatform = () => {
     };
 
     const createCollabSpace = (name: string) => {
-        const newSpace = {
+        const newSpace: CollabSpace = {
             id: `space-${Date.now()}`,
             name,
             active: true,
@@ -362,7 +377,7 @@ const QuizPlatform = () => {
     };
 
     const createAdministrator = (username: string, password: string, spaceId: string) => {
-        const newAdmin = {
+        const newAdmin: Administrator = {
             id: `admin-${Date.now()}`,
             username,
             password,
@@ -390,7 +405,7 @@ const QuizPlatform = () => {
     };
 
     // CSV upload helper that creates question set
-    const uploadQuestionsFromFile = async (file: File, subject: string, topicsString: string, level: string) => {
+    const uploadQuestionsFromFile = async (file: File, subject: string, topicsString: string, level: string): Promise<CSVUploadResult> => {
         if (!file) throw new Error('No file provided');
 
         const topics = (topicsString || '').split(',').map(t => t.trim()).filter(Boolean);
@@ -404,7 +419,7 @@ const QuizPlatform = () => {
         });
 
         const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-        const newQuestions: any[] = [];
+        const newQuestions: Question[] = [];
         const errors: string[] = [];
 
         lines.forEach((line, idx) => {
@@ -445,7 +460,7 @@ const QuizPlatform = () => {
             while (opts.length < 4) opts.push(`Option ${String.fromCharCode(65 + opts.length)}`);
             if (opts.length > 4) opts.splice(4);
 
-            const q = {
+            const q: Question = {
                 id: `q-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`,
                 subject: subject || 'General',
                 topic: topics.join(',') || '',
@@ -468,7 +483,7 @@ const QuizPlatform = () => {
         const updatedQuestions = [...questions, ...newQuestions];
 
         // Create a question set entry (label + question IDs)
-        const qs = {
+        const qs: QuestionSet = {
             id: `qs-${Date.now()}`,
             label,
             subject: subject || 'General',
@@ -563,7 +578,7 @@ const QuizPlatform = () => {
 
     // Create quiz now accepts optional questionSetId to source questions from
     const createQuiz = (name: string, duration: number, questionCount: number, subject: string, level: string, labels: string[], questionSetId?: string) => {
-        const newQuiz = {
+        const newQuiz: Quiz = {
             id: `quiz-${Date.now()}`,
             name,
             duration,
@@ -583,7 +598,7 @@ const QuizPlatform = () => {
 
     // createBatch removed subject param (per request)
     const createBatch = (quizId: string, schoolName: string) => {
-        const newBatch = {
+        const newBatch: Batch = {
             id: `batch-${Date.now()}`,
             quizId,
             schoolName,
@@ -623,11 +638,11 @@ const QuizPlatform = () => {
         return uname;
     };
 
-    const addStudentToBatch = (batchId: string, name: string) => {
+    const addStudentToBatch = (batchId: string, name: string): StudentCreationResult => {
         const username = generateUniqueShortUsername();
         const password = `pass${Math.floor(Math.random() * 10000)}`;
 
-        const newStudent = {
+        const newStudent: Student = {
             id: `student-${Date.now()}`,
             name,
             username,
@@ -655,7 +670,7 @@ const QuizPlatform = () => {
     };
 
     const createSupervisor = (username: string, password: string, batchIds: string[]) => {
-        const newSupervisor = {
+        const newSupervisor: Supervisor = {
             id: `sup-${Date.now()}`,
             username,
             password,
@@ -771,10 +786,10 @@ const QuizPlatform = () => {
     };
 
     // Helper to get latest finished attempt for a student for a given quiz & batch
-    const getLatestFinishedAttempt = (studentId: string, quizId: string, batchId?: string) => {
+    const getLatestFinishedAttempt = (studentId: string, quizId: string, batchId?: string): QuizAttempt | null => {
         const attempts = quizAttempts
-            .filter(a => a.studentId === studentId && a.quizId === quizId && a.batchId === (batchId || a.batchId) && a.finishedAt)
-            .sort((a, b) => new Date(b.finishedAt).getTime() - new Date(a.finishedAt).getTime());
+            .filter((a: QuizAttempt) => a.studentId === studentId && a.quizId === quizId && a.batchId === (batchId || a.batchId) && a.finishedAt)
+            .sort((a: QuizAttempt, b: QuizAttempt) => new Date(b.finishedAt!).getTime() - new Date(a.finishedAt!).getTime());
         return attempts[0] || null;
     };
 
@@ -988,12 +1003,11 @@ const QuizPlatform = () => {
         // For the "question sets" view interaction
         const [selectedQuestionSetId, setSelectedQuestionSetId] = useState<string | null>(null);
 
-        const myQuestions = questions.filter(q => q.collabSpaceId === currentUser?.collabSpaceId);
-        const myQuizzes = quizzes.filter(q => q.collabSpaceId === currentUser?.collabSpaceId);
-        const myBatches = batches.filter(b => b.collabSpaceId === currentUser?.collabSpaceId);
-        const myStudents = students.filter(s => s.collabSpaceId === currentUser?.collabSpaceId);
-        const mySupervisors = supervisors.filter(s => s.collabSpaceId === currentUser?.collabSpaceId);
-        const myQuestionSets = questionSets.filter(qs => qs.collabSpaceId === currentUser?.collabSpaceId);
+        const myQuizzes = quizzes.filter((q: Quiz) => q.collabSpaceId === currentUser?.collabSpaceId);
+        const myBatches = batches.filter((b: Batch) => b.collabSpaceId === currentUser?.collabSpaceId);
+        const myStudents = students.filter((s: Student) => s.collabSpaceId === currentUser?.collabSpaceId);
+        const mySupervisors = supervisors.filter((s: Supervisor) => s.collabSpaceId === currentUser?.collabSpaceId);
+        const myQuestionSets = questionSets.filter((qs: QuestionSet) => qs.collabSpaceId === currentUser?.collabSpaceId);
 
         return (
             <div className="space-y-6">
@@ -1081,7 +1095,7 @@ const QuizPlatform = () => {
                                                 <button type="button" onClick={() => setSelectedQuestionSetId(qs.id)} className="font-medium text-left text-blue-700 hover:underline">
                                                     {qs.label}
                                                 </button>
-                                                <div className="text-sm text-gray-600">{qs.questionIds.length} question(s) — {qs.level} — {qs.topics?.join(', ')}</div>
+                                                <div className="text-sm text-gray-600">{qs.questionIds.length} question(s) ï¿½ {qs.level} ï¿½ {qs.topics?.join(', ')}</div>
                                             </div>
                                             <div className="flex gap-2 items-center">
                                                 <button type="button" onClick={() => {
@@ -1242,7 +1256,7 @@ const QuizPlatform = () => {
                                                     onClick={() => setExpandedBatches(prev => ({ ...prev, [b.id]: !prev[b.id] }))}
                                                     className="font-medium text-left"
                                                 >
-                                                    {b.schoolName} - {quiz?.name || '—'}
+                                                    {b.schoolName} - {quiz?.name || 'ï¿½'}
                                                 </button>
                                                 <p className="text-sm text-gray-600">Students: {batchStudents.length}</p>
                                             </div>
@@ -1291,7 +1305,7 @@ const QuizPlatform = () => {
                                                             </div>
                                                             <div className="flex items-center gap-2">
                                                                 <div className="text-sm">
-                                                                    {quizId ? (attempt ? <span className="text-green-700">Completed — {attempt.percentage}%</span> : <span className="text-yellow-700">Incomplete</span>) : <span className="text-gray-600">No quiz</span>}
+                                                                    {quizId ? (attempt ? <span className="text-green-700">Completed ï¿½ {attempt.percentage}%</span> : <span className="text-yellow-700">Incomplete</span>) : <span className="text-gray-600">No quiz</span>}
                                                                 </div>
                                                                 {attempt && (
                                                                     <button type="button" onClick={() => { setCurrentAttempt(attempt); setCurrentView('student-review'); }} className="text-sm text-blue-600 hover:underline">Review</button>
@@ -1317,7 +1331,7 @@ const QuizPlatform = () => {
                             <input type="text" placeholder="Student Name" className="flex-1 p-2 border rounded" value={studentName} onChange={(e) => setStudentName(e.target.value)} />
                             <select className="p-2 border rounded" value={selectedBatch} onChange={(e) => setSelectedBatch(e.target.value)}>
                                 <option value="">Select Batch</option>
-                                {myBatches.filter(b => b.active).map(b => <option key={b.id} value={b.id}>{b.schoolName} - {b.subject}</option>)}
+                                {myBatches.filter((b: Batch) => b.active).map((b: Batch) => <option key={b.id} value={b.id}>{b.schoolName}</option>)}
                             </select>
                             <button type="button" onClick={() => { if (studentName && selectedBatch) { const creds = addStudentToBatch(selectedBatch, studentName); setGeneratedCreds([...generatedCreds, { name: studentName, ...creds }]); setStudentName(''); } }} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2">
                                 <UserPlus size={20} /> Add Student
@@ -1393,12 +1407,12 @@ const QuizPlatform = () => {
                                                 className="w-full p-2 border rounded h-32"
                                                 aria-label={`Assign batches to ${s.username}`}
                                             >
-                                                {myBatches.map(b => <option key={b.id} value={b.id}>{b.schoolName} - {b.subject}</option>)}
+                                                {myBatches.map((b: Batch) => <option key={b.id} value={b.id}>{b.schoolName}</option>)}
                                             </select>
 
                                             {assigned.length > 0 && (
                                                 <div className="mt-2 text-sm text-gray-700">
-                                                    Assigned: {assigned.map(id => `${myBatches.find(b => b.id === id)?.schoolName} - ${myBatches.find(b => b.id === id)?.subject}`).join(', ')}
+                                                    Assigned: {assigned.map((id: string) => myBatches.find((b: Batch) => b.id === id)?.schoolName).join(', ')}
                                                 </div>
                                             )}
                                         </div>
@@ -1424,7 +1438,6 @@ const QuizPlatform = () => {
                                 quizzes={myQuizzes}
                                 batches={myBatches}
                                 quizAttempts={quizAttempts}
-                                students={students}
                                 setCurrentAttempt={setCurrentAttempt}
                                 setCurrentView={setCurrentView}
                             />
@@ -1436,7 +1449,7 @@ const QuizPlatform = () => {
     };
 
     // Small helper component rendered inside AdministratorView for reports to keep main file readable.
-    const ReportPanel = ({ quizzes, batches, quizAttempts, students, setCurrentAttempt, setCurrentView }: any) => {
+    const ReportPanel = ({ quizzes, batches, quizAttempts, setCurrentAttempt, setCurrentView }: { quizzes: Quiz[], batches: Batch[], quizAttempts: QuizAttempt[], setCurrentAttempt: (attempt: QuizAttempt) => void, setCurrentView: (view: ViewType) => void }) => {
         const [selectedQuizId, setSelectedQuizId] = useState<string>('');
         const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
 
@@ -1446,7 +1459,7 @@ const QuizPlatform = () => {
             }
             // auto-select all batches initially
             if (batches.length && selectedBatchIds.length === 0) {
-                setSelectedBatchIds(batches.map(b => b.id));
+                setSelectedBatchIds(batches.map((b: Batch) => b.id));
             }
         }, [quizzes, batches]);
 
@@ -1458,32 +1471,32 @@ const QuizPlatform = () => {
             <div className="w-full">
                 <div className="flex gap-2 mb-3 items-center">
                     <select className="p-2 border rounded" value={selectedQuizId} onChange={(e) => setSelectedQuizId(e.target.value)}>
-                        {quizzes.map(q => <option key={q.id} value={q.id}>{q.name}</option>)}
+                        {quizzes.map((q: Quiz) => <option key={q.id} value={q.id}>{q.name}</option>)}
                     </select>
 
                     <select multiple className="p-2 border rounded" value={selectedBatchIds} onChange={(e) => setSelectedBatchIds(Array.from(e.target.selectedOptions).map(o => o.value))} style={{ minWidth: 240 }}>
-                        {batches.map(b => <option key={b.id} value={b.id}>{b.schoolName} - {b.subject}</option>)}
+                        {batches.map((b: Batch) => <option key={b.id} value={b.id}>{b.schoolName}</option>)}
                     </select>
                 </div>
 
                 {selectedQuizId ? (
                     <div>
-                        {selectedBatchIds.map(batchId => {
-                            const batch = batches.find(b => b.id === batchId);
+                        {selectedBatchIds.map((batchId: string) => {
+                            const batch = batches.find((b: Batch) => b.id === batchId);
                             const attempts = attemptsFor(selectedQuizId, [batchId]);
-                            const avg = attempts.length > 0 ? (attempts.reduce((s, a) => s + parseFloat(a.percentage), 0) / attempts.length).toFixed(2) : '0';
+                            const avg = attempts.length > 0 ? (attempts.reduce((s: number, a: QuizAttempt) => s + parseFloat(a.percentage.toString()), 0) / attempts.length).toFixed(2) : '0';
                             return (
                                 <div key={batchId} className="p-3 border rounded mb-2">
                                     <div className="flex justify-between items-center mb-2">
                                         <div>
-                                            <div className="font-medium">{batch?.schoolName} — {batch?.subject}</div>
+                                            <div className="font-medium">{batch?.schoolName}</div>
                                             <div className="text-sm text-gray-600">Attempts: {attempts.length} | Avg: {avg}%</div>
                                         </div>
                                         <div />
                                     </div>
 
                                     <div className="space-y-1">
-                                        {attempts.map(a => (
+                                        {attempts.map((a: QuizAttempt) => (
                                             <div key={a.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
                                                 <div>
                                                     <div className="font-medium">{a.studentName}</div>
@@ -1536,8 +1549,8 @@ const QuizPlatform = () => {
                                 <div key={batch.id} className="p-4 border rounded">
                                     <div className="flex justify-between items-start mb-3">
                                         <div>
-                                            <h3 className="font-bold text-lg">{batch.schoolName} - {batch.subject}</h3>
-                                            <p className="text-sm text-gray-600">Quiz: {quiz?.name || '—'} | Students: {batchStudents.length}</p>
+                                            <h3 className="font-bold text-lg">{batch.schoolName}</h3>
+                                            <p className="text-sm text-gray-600">Quiz: {quiz?.name || 'ï¿½'} | Students: {batchStudents.length}</p>
                                         </div>
 
                                         <div className="flex gap-2">
@@ -1585,7 +1598,7 @@ const QuizPlatform = () => {
                                                                 const attempt = getLatestFinishedAttempt(s.id, batch.activeQuizId, batch.id);
                                                                 return attempt ? <div className="text-sm text-green-700">{attempt.percentage}%</div> : <div className="text-sm text-yellow-700">Not done</div>;
                                                             })()
-                                                        ) : <div className="text-sm text-gray-600">—</div>}
+                                                        ) : <div className="text-sm text-gray-600">ï¿½</div>}
                                                         {batch.activeQuizId && (() => {
                                                             const attempt = getLatestFinishedAttempt(s.id, batch.activeQuizId, batch.id);
                                                             return attempt ? <button type="button" onClick={() => { setCurrentAttempt(attempt); setCurrentView('student-review'); }} className="text-sm text-blue-600 hover:underline">Review</button> : null;
@@ -1668,7 +1681,7 @@ const QuizPlatform = () => {
 
         // select questions for the quiz:
         // Prefer questions from a specified questionSet on the quiz; otherwise prefer questions matching collabSpaceId, subject and level
-        let sourceQuestions: any[] = [];
+        let sourceQuestions: Question[] = [];
         if (quiz.questionSetId) {
             const set = questionSets.find(s => s.id === quiz.questionSetId);
             if (set) {
@@ -1692,12 +1705,12 @@ const QuizPlatform = () => {
         const questionIds = selected.map(q => q.id);
 
         // create attempt with empty answers
-        const attempt = {
+        const attempt: QuizAttempt = {
             id: `attempt-${Date.now()}`,
             batchId: batch.id,
             quizId: quiz.id,
-            studentId: currentUser?.id,
-            studentName: (students.find(s => s.id === currentUser?.id)?.name) || currentUser?.username,
+            studentId: currentUser?.id || '',
+            studentName: (students.find(s => s.id === currentUser?.id)?.name) || currentUser?.username || '',
             questionIds,
             answers: questionIds.map((qid: string) => ({ questionId: qid, selected: null })),
             score: 0,
@@ -1930,7 +1943,7 @@ const QuizPlatform = () => {
                     </div>
                 )}
 
-                {quiz && (
+                {quiz && studentBatch && (
                     <div className="space-y-4">
                         <div className="p-4 border rounded">
                             <p className="font-semibold text-lg">{quiz.name}</p>
@@ -1982,7 +1995,7 @@ const QuizPlatform = () => {
                             <div key={a.id} className="p-3 border rounded flex justify-between items-center">
                                 <div>
                                     <p className="font-medium">{quiz?.name || 'Quiz'}</p>
-                                    <p className="text-sm text-gray-600">Score: {a.score}/{a.total} — {a.percentage}%</p>
+                                    <p className="text-sm text-gray-600">Score: {a.score}/{a.total} ï¿½ {a.percentage}%</p>
                                     <p className="text-sm text-gray-500">Started: {new Date(a.startedAt).toLocaleString()}</p>
                                     {a.finishedAt && <p className="text-sm text-gray-500">Finished: {new Date(a.finishedAt).toLocaleString()}</p>}
                                 </div>
@@ -2010,7 +2023,7 @@ const QuizPlatform = () => {
         return (
             <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold">{quiz?.name} — Review</h2>
+                    <h2 className="text-2xl font-bold">{quiz?.name} ï¿½ Review</h2>
                     <button type="button" onClick={() => { setCurrentAttempt(null); setCurrentView('student-results'); }} className="text-sm text-blue-600 hover:underline">Back</button>
                 </div>
 
@@ -2076,7 +2089,7 @@ const QuizPlatform = () => {
                 {currentUser?.role === 'student' && currentView === 'student-quiz' && <StudentQuizView />}
                 {currentUser?.role === 'student' && currentView === 'student-taking' && <StudentTakingView />}
                 {currentUser?.role === 'student' && currentView === 'student-results' && <StudentResultsView />}
-                {/* Allow review page to be opened by supervisors/admins as well — render regardless of role when selected */}
+                {/* Allow review page to be opened by supervisors/admins as well ï¿½ render regardless of role when selected */}
                 {currentView === 'student-review' && <StudentReviewView />}
             </div>
         </div>
