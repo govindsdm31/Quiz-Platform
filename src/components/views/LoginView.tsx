@@ -229,7 +229,13 @@ export function LoginView({
               </div>
 
               <div className="grid grid-cols-1 gap-2 text-xs">
-                <div className="flex items-center gap-2 p-2 bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg border border-purple-200 hover:shadow-md transition-shadow cursor-pointer">
+                <div
+                  className="flex items-center gap-2 p-2 bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg border border-purple-200 hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => {
+                    setLoginForm({ username: 'owner', password: 'owner123' });
+                    setTimeout(handleLogin, 0);
+                  }}
+                >
                   <Crown size={16} className="text-purple-600 flex-shrink-0" />
                   <div className="flex-1">
                     <span className="font-semibold text-purple-900">Owner:</span>
@@ -237,7 +243,13 @@ export function LoginView({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 p-2 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200 hover:shadow-md transition-shadow cursor-pointer">
+                <div
+                  className="flex items-center gap-2 p-2 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200 hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => {
+                    setLoginForm({ username: 'admin', password: 'admin123' });
+                    setTimeout(handleLogin, 0);
+                  }}
+                >
                   <ShieldCheck size={16} className="text-blue-600 flex-shrink-0" />
                   <div className="flex-1">
                     <span className="font-semibold text-blue-900">Admin:</span>
@@ -245,7 +257,13 @@ export function LoginView({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 p-2 bg-gradient-to-r from-green-50 to-green-100 rounded-lg border border-green-200 hover:shadow-md transition-shadow cursor-pointer">
+                <div
+                  className="flex items-center gap-2 p-2 bg-gradient-to-r from-green-50 to-green-100 rounded-lg border border-green-200 hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => {
+                    setLoginForm({ username: 'supervisor', password: 'super123' });
+                    setTimeout(handleLogin, 0);
+                  }}
+                >
                   <Users size={16} className="text-green-600 flex-shrink-0" />
                   <div className="flex-1">
                     <span className="font-semibold text-green-900">Supervisor:</span>
@@ -253,7 +271,13 @@ export function LoginView({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 p-2 bg-gradient-to-r from-amber-50 to-amber-100 rounded-lg border border-amber-200 hover:shadow-md transition-shadow cursor-pointer">
+                <div
+                  className="flex items-center gap-2 p-2 bg-gradient-to-r from-amber-50 to-amber-100 rounded-lg border border-amber-200 hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => {
+                    setLoginForm({ username: 'student', password: 'student123' });
+                    setTimeout(handleLogin, 0);
+                  }}
+                >
                   <GraduationCap size={16} className="text-amber-600 flex-shrink-0" />
                   <div className="flex-1">
                     <span className="font-semibold text-amber-900">Student:</span>
