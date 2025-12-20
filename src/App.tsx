@@ -18,11 +18,7 @@ import type {
   ActiveQuizSession
 } from './types';
 import {
-  DB_STORAGE_KEY,
-  PLATFORM_DATA_KEY,
   REMEMBERED_USERNAME_KEY,
-  INITIAL_OWNER,
-  SQLJS_CDN_URL,
   STUDENT_USERNAME_LENGTH,
   STUDENT_USERNAME_CHARS,
   OPTIONS_PER_QUESTION,
@@ -30,14 +26,7 @@ import {
   CSV_OPTION_SEPARATOR,
   VIEWS
 } from './constants';
-
-/*
-  Persist platform data into an in-browser SQLite database using sql.js.
-  - The DB is kept in memory and exported into localStorage as a base64 blob ("sqljs-db").
-  - A simple key/value table `kv(key TEXT PRIMARY KEY, value TEXT)` stores the entire platform JSON
-    under key "platform-data" for compatibility with the existing in-memory state shape.
-  - This approach gives you a real SQLite file in the browser while keeping the code changes minimal.
-*/
+import { databaseService } from './services/database';
 
 const QuizPlatform = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -62,174 +51,21 @@ const QuizPlatform = () => {
     // support remounting role views when going "home" so internal view state resets
     const [homeKey, setHomeKey] = useState(0);
 
-    // sql.js DB reference
-    const sqlDbRef = useRef<any | null>(null);
-    const SQLRef = useRef<any | null>(null);
-
-    // Initialize sql.js and load DB from localStorage (if present)
-    const initDb = async () => {
-        if (sqlDbRef.current) return;
-
-        // dynamic import so bundlers that don't include sql.js won't break until this runs
-        try {
-            const initSqlJs = (await import('sql.js')).default;
-            const SQL = await initSqlJs({ locateFile: (file: string) => `${SQLJS_CDN_URL}${file}` });
-            SQLRef.current = SQL;
-
-            // Try load DB from localStorage
-            const saved = localStorage.getItem(DB_STORAGE_KEY);
-            let db;
-            if (saved) {
-                try {
-                    const binary = Uint8Array.from(atob(saved), (c) => c.charCodeAt(0));
-                    db = new SQL.Database(binary);
-                } catch (e) {
-                    console.warn('Failed to load saved SQL DB, creating new one.', e);
-                    db = new SQL.Database();
-                }
-            } else {
-                db = new SQL.Database();
-            }
-
-            // Ensure kv table exists
-            db.run(`
-        CREATE TABLE IF NOT EXISTS kv (
-          key TEXT PRIMARY KEY,
-          value TEXT
-        );
-      `);
-
-            sqlDbRef.current = db;
-        } catch (err) {
-            // If sql.js can't be loaded, fall back to existing window.storage usage.
-            console.error('Failed to initialize sql.js:', err);
-            sqlDbRef.current = null;
-            SQLRef.current = null;
-        }
-    };
-
-    // Persist the current in-memory SQL DB to localStorage as base64
-    const persistSqlDb = () => {
-        const db = sqlDbRef.current;
-        if (!db) return;
-        try {
-            const u8 = db.export();
-            const binaryString = String.fromCharCode.apply(null, Array.from(u8) as any);
-            const b64 = btoa(binaryString);
-            localStorage.setItem(DB_STORAGE_KEY, b64);
-        } catch (err) {
-            console.warn('Failed to persist SQL DB to localStorage', err);
-        }
-    };
-
-    // Read platform-data JSON from kv table (returns null if not present)
-    const readPlatformDataFromDb = (): any | null => {
-        const db = sqlDbRef.current;
-        if (!db) return null;
-        try {
-            const res = db.exec(`SELECT value FROM kv WHERE key = '${PLATFORM_DATA_KEY}'`);
-            if (res && res.length && res[0].values && res[0].values.length) {
-                const value = res[0].values[0][0];
-                try {
-                    return JSON.parse(value);
-                } catch (e) {
-                    console.warn('Failed to parse platform-data JSON from DB', e);
-                }
-            }
-        } catch (err) {
-            console.warn('Failed to read platform-data from DB', err);
-        }
-        return null;
-    };
-
-    // Write platform-data JSON into kv table (INSERT OR REPLACE)
-    const writePlatformDataToDb = (data: any) => {
-        const db = sqlDbRef.current;
-        if (!db) return;
-        try {
-            const json = JSON.stringify(data);
-            const stmt = db.prepare('INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)');
-            stmt.run([PLATFORM_DATA_KEY, json]);
-            stmt.free();
-            persistSqlDb();
-        } catch (err) {
-            console.warn('Failed to write platform-data to DB', err);
-        }
-    };
-
     useEffect(() => {
         const initData = async () => {
-            await initDb();
+            // Load data from database service
+            const data = await databaseService.loadInitialData();
 
-            // Try to load from SQLite DB first
-            const fromDb = readPlatformDataFromDb();
-            if (fromDb) {
-                setUsers(fromDb.users || []);
-                setCollabSpaces(fromDb.collabSpaces || []);
-                setAdministrators(fromDb.administrators || []);
-                setQuestions(fromDb.questions || []);
-                setQuizzes(fromDb.quizzes || []);
-                setBatches(fromDb.batches || []);
-                setStudents(fromDb.students || []);
-                setSupervisors(fromDb.supervisors || []);
-                setQuizAttempts(fromDb.quizAttempts || []);
-                setQuestionSets(fromDb.questionSets || []);
-                return;
-            }
-
-            // Fallback to previous window.storage method (if available)
-            try {
-                const storageData = await (window as any).storage?.get?.('platform-data');
-                if (storageData) {
-                    const data = JSON.parse(storageData.value);
-                    setUsers(data.users || []);
-                    setCollabSpaces(data.collabSpaces || []);
-                    setAdministrators(data.administrators || []);
-                    setQuestions(data.questions || []);
-                    setQuizzes(data.quizzes || []);
-                    setBatches(data.batches || []);
-                    setStudents(data.students || []);
-                    setSupervisors(data.supervisors || []);
-                    setQuizAttempts(data.quizAttempts || []);
-                    setQuestionSets(data.questionSets || []);
-                    // also persist that into SQLite for future runs
-                    writePlatformDataToDb(data);
-                } else {
-                    // Create initial owner user and save into DB
-                    const initialUsers: User[] = [INITIAL_OWNER];
-                    const data = {
-                        users: initialUsers,
-                        collabSpaces: [],
-                        administrators: [],
-                        questions: [],
-                        quizzes: [],
-                        batches: [],
-                        students: [],
-                        supervisors: [],
-                        quizAttempts: [],
-                        questionSets: []
-                    };
-                    setUsers(initialUsers);
-                    writePlatformDataToDb(data);
-                }
-            } catch (err) {
-                console.error('Storage error:', err);
-                // fallback in-memory initial user
-                const initialUsers: User[] = [INITIAL_OWNER];
-                setUsers(initialUsers);
-                writePlatformDataToDb({
-                    users: initialUsers,
-                    collabSpaces: [],
-                    administrators: [],
-                    questions: [],
-                    quizzes: [],
-                    batches: [],
-                    students: [],
-                    supervisors: [],
-                    quizAttempts: [],
-                    questionSets: []
-                });
-            }
+            setUsers(data.users || []);
+            setCollabSpaces(data.collabSpaces || []);
+            setAdministrators(data.administrators || []);
+            setQuestions(data.questions || []);
+            setQuizzes(data.quizzes || []);
+            setBatches(data.batches || []);
+            setStudents(data.students || []);
+            setSupervisors(data.supervisors || []);
+            setQuizAttempts(data.quizAttempts || []);
+            setQuestionSets(data.questionSets || []);
         };
 
         initData();
@@ -246,7 +82,7 @@ const QuizPlatform = () => {
         }
     }, []);
 
-    // Central saveData: update in-memory state (if provided) and persist to SQLite (and fallback window.storage)
+    // Central saveData: update in-memory state (if provided) and persist to database
     const saveData = async (updates: any = {}) => {
         // Compose full data object from existing state and explicit updates
         const data = {
@@ -274,27 +110,8 @@ const QuizPlatform = () => {
         if (updates.quizAttempts !== undefined) setQuizAttempts(updates.quizAttempts);
         if (updates.questionSets !== undefined) setQuestionSets(updates.questionSets);
 
-        // Persist to SQLite DB (if available)
-        try {
-            if (!sqlDbRef.current) {
-                // try initialize if not already
-                await initDb();
-            }
-            if (sqlDbRef.current) {
-                writePlatformDataToDb(data);
-            }
-        } catch (err) {
-            console.warn('Failed to save to SQLite DB', err);
-        }
-
-        // Also persist into existing window.storage (backwards compatibility)
-        try {
-            if ((window as any).storage?.set) {
-                await (window as any).storage.set('platform-data', JSON.stringify(data));
-            }
-        } catch (err) {
-            console.warn('Failed to save to window.storage', err);
-        }
+        // Persist to database (both SQLite and window.storage for backwards compatibility)
+        await databaseService.save(data);
     };
 
     const handleLogin = () => {
