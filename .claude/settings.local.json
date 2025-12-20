@@ -10,7 +10,9 @@
       "Bash(git commit -m \"$\\(cat <<''EOF''\nPhase 1: Add TypeScript type definitions and improve type safety\n\n- Created comprehensive type definitions in src/types/index.ts\n- Replaced all ''any'' types with proper TypeScript interfaces\n- Added types for User, Student, Supervisor, Administrator, CollabSpace,\n  Question, QuestionSet, Quiz, Batch, QuizAttempt, and more\n- Fixed TypeScript compilation errors throughout App.tsx\n- Removed unused imports and variables\n- Removed deprecated batch.subject references\n- Added @types/sql.js for better SQL.js type support\n- Deleted backup files \\(App - Copy*.tsx\\) causing build errors\n- Build now compiles successfully with strict type checking\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nPhase 2: Extract application constants\n\n- Created src/constants/index.ts with all hardcoded values\n- Replaced database storage keys \\(DB_STORAGE_KEY, PLATFORM_DATA_KEY, REMEMBERED_USERNAME_KEY\\)\n- Replaced initial owner user object with INITIAL_OWNER constant\n- Replaced SQL.js CDN URL with SQLJS_CDN_URL\n- Replaced student username generation constants \\(STUDENT_USERNAME_LENGTH, STUDENT_USERNAME_CHARS\\)\n- Replaced question options constant \\(OPTIONS_PER_QUESTION\\)\n- Replaced CSV parsing separators \\(CSV_QUESTION_SEPARATOR, CSV_OPTION_SEPARATOR\\)\n- Replaced all view string literals with VIEWS constants throughout App.tsx\n- Build compiles successfully with no errors\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git commit:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(npm run dev:*)",
+      "Bash(cat:*)"
     ]
   }
 }
