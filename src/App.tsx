@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { Users, Settings, LogOut, Play, Square, Clock, Plus, Trash2, UserPlus, Download } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Users, Settings, LogOut, Play, Square, Plus, Trash2, UserPlus, Download } from 'lucide-react';
 import type {
   User,
   Student,
@@ -22,11 +22,14 @@ import {
   VIEWS
 } from './constants';
 import { databaseService } from './services/database';
-import { formatTime } from './utils/time';
 import { generateUniqueUsername, generatePassword } from './utils/username';
 import { parseQuestionCSV, readFileAsText, convertToQuestions } from './utils/csv';
 import { useAuth } from './hooks/useAuth';
 import { LoginView } from './components/views/LoginView';
+import { StudentQuizView } from './components/views/StudentQuizView';
+import { StudentTakingView } from './components/views/StudentTakingView';
+import { StudentResultsView } from './components/views/StudentResultsView';
+import { StudentReviewView } from './components/views/StudentReviewView';
 
 const QuizPlatform = () => {
     const [users, setUsers] = useState<User[]>([]);
@@ -1363,327 +1366,7 @@ const QuizPlatform = () => {
     };
 
     // Student taking UI: question navigation, answer selection, timer, submit/grading
-    const StudentTakingView = () => {
-        const [index, setIndex] = useState(0);
-        const [remaining, setRemaining] = useState<number>(currentAttempt?.timeLimitSeconds || 0);
-        const intervalRef = useRef<number | null>(null);
 
-        useEffect(() => {
-            if (!currentAttempt) return;
-            setRemaining(currentAttempt.timeLimitSeconds || 0);
-
-            // start timer
-            intervalRef.current = window.setInterval(() => {
-                setRemaining(prev => {
-                    if (prev <= 1) {
-                        // auto-submit
-                        window.clearInterval(intervalRef.current || 0);
-                        submitAttempt(); // will grade and navigate
-                        return 0;
-                    }
-                    return prev - 1;
-                });
-            }, 1000);
-
-            return () => {
-                if (intervalRef.current) window.clearInterval(intervalRef.current);
-            };
-            // eslint-disable-next-line react-hooks/exhaustive-deps
-        }, [currentAttempt?.id]);
-
-        if (!currentAttempt) {
-            return (
-                <div className="bg-white rounded-lg shadow p-6">
-                    <p className="text-sm text-gray-700">No active attempt. Return to your quizzes.</p>
-                    <button type="button" onClick={() => setCurrentView(VIEWS.STUDENT_QUIZ)} className="mt-2 text-sm text-blue-600 hover:underline">Back</button>
-                </div>
-            );
-        }
-
-        const quiz = quizzes.find(q => q.id === currentAttempt.quizId);
-        const questionList = currentAttempt.questionIds.map((qid: string) => questions.find(q => q.id === qid)).filter(Boolean);
-
-        // keep index valid if questionList length changed
-        useEffect(() => {
-            if (index >= questionList.length) {
-                setIndex(Math.max(0, questionList.length - 1));
-            }
-            // keep index unchanged otherwise (do not reset to 0)
-            // eslint-disable-next-line react-hooks/exhaustive-deps
-        }, [questionList.length]);
-
-        const currentQuestion = questionList[index];
-
-        const setAnswer = (questionId: string, selectedIndex: number) => {
-            // update currentAttempt answers immutably but DO NOT reset index or remount the view
-            const updatedAttempt = {
-                ...currentAttempt,
-                answers: currentAttempt.answers.map((a: any) =>
-                    a.questionId === questionId ? { ...a, selected: selectedIndex } : a
-                )
-            };
-            setCurrentAttempt(updatedAttempt);
-
-            // persist progress in quizAttempts array
-            const updatedAttempts = quizAttempts.map(a => a.id === updatedAttempt.id ? updatedAttempt : a);
-            setQuizAttempts(updatedAttempts);
-            saveData({ quizAttempts: updatedAttempts });
-        };
-
-        const submitAttempt = () => {
-            if (!currentAttempt) return;
-            // grade
-            let score = 0;
-            for (const a of currentAttempt.answers) {
-                const q = questions.find(q => q.id === a.questionId);
-                if (!q) continue;
-                if (a.selected !== null && a.selected === q.correctAnswer) score++;
-            }
-            const total = currentAttempt.total || currentAttempt.questionIds.length || 0;
-            const percentage = total > 0 ? ((score / total) * 100).toFixed(2) : '0';
-
-            const finished = {
-                ...currentAttempt,
-                score,
-                percentage: parseFloat(percentage as any),
-                finishedAt: new Date().toISOString(),
-                elapsedSeconds: (currentAttempt.timeLimitSeconds || 0) - remaining
-            };
-
-            // update attempts list
-            const updatedAttempts = quizAttempts.map(a => a.id === finished.id ? finished : a);
-            setQuizAttempts(updatedAttempts);
-            saveData({ quizAttempts: updatedAttempts });
-
-            // clear current attempt and go to results
-            setCurrentAttempt(null);
-            setCurrentView(VIEWS.STUDENT_RESULTS);
-        };
-
-        return (
-            <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold">Taking: {quiz?.name}</h2>
-                    <div className="text-sm text-gray-700 flex items-center gap-2">
-                        <Clock /> <span>{formatTime(remaining)}</span>
-                    </div>
-                </div>
-
-                <div className="p-4 border rounded space-y-4">
-                    <div className="mb-2 text-sm text-gray-600">Question {index + 1} of {questionList.length}</div>
-
-                    {currentQuestion ? (
-                        <>
-                            <p className="font-medium mb-2">{currentQuestion.question}</p>
-                            <div className="space-y-2">
-                                {currentQuestion.options.map((opt: string, i: number) => {
-                                    const curAns = currentAttempt.answers.find((a: any) => a.questionId === currentQuestion.id);
-                                    const selected = curAns ? curAns.selected === i : false;
-                                    return (
-                                        <button
-                                            type="button"
-                                            key={i}
-                                            onClick={() => setAnswer(currentQuestion.id, i)}
-                                            className={`w-full text-left p-3 border rounded ${selected ? 'bg-blue-600 text-white' : 'bg-gray-50 hover:bg-gray-100'}`}
-                                        >
-                                            {opt}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </>
-                    ) : (
-                        <div className="text-sm text-gray-600">Question not found.</div>
-                    )}
-                </div>
-
-                <div className="flex justify-between items-center mt-4">
-                    <div className="flex gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setIndex(i => Math.max(0, i - 1))}
-                            disabled={index === 0}
-                            className={`px-4 py-2 rounded ${index === 0 ? 'bg-gray-200 text-gray-500' : 'bg-gray-200 hover:bg-gray-300'}`}
-                        >
-                            Previous
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setIndex(i => Math.min(questionList.length - 1, i + 1))}
-                            disabled={index === questionList.length - 1}
-                            className={`px-4 py-2 rounded ${index === questionList.length - 1 ? 'bg-gray-200 text-gray-500' : 'bg-gray-200 hover:bg-gray-300'}`}
-                        >
-                            Next
-                        </button>
-                    </div>
-
-                    <div className="flex gap-2">
-                        <button
-                            type="button"
-                            onClick={() => {
-                                // quick confirm then submit
-                                if (confirm('Submit quiz now?')) {
-                                    if (intervalRef.current) window.clearInterval(intervalRef.current);
-                                    submitAttempt();
-                                }
-                            }}
-                            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-                        >
-                            Submit Quiz
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
-    // Student view: show active quiz (if any) and Start button
-    const StudentQuizView = () => {
-        if (!currentUser) return <div />;
-
-        // find the student's batch
-        const student = students.find(s => s.id === currentUser.id);
-        const studentBatch = student ? batches.find(b => b.id === student.batchId) : null;
-        const activeQuizId = studentBatch?.activeQuizId;
-        const quiz = activeQuizId ? quizzes.find(q => q.id === activeQuizId) : null;
-
-        return (
-            <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-2xl font-bold mb-4">My Quiz</h2>
-
-                {!student && (
-                    <div className="p-4 bg-yellow-50 border rounded text-sm text-gray-700">
-                        No student profile found. Contact your administrator.
-                    </div>
-                )}
-
-                {student && !studentBatch && (
-                    <div className="p-4 bg-yellow-50 border rounded text-sm text-gray-700">
-                        You are not assigned to a batch. Contact your supervisor.
-                    </div>
-                )}
-
-                {studentBatch && !quiz && (
-                    <div className="p-4 bg-yellow-50 border rounded text-sm text-gray-700">
-                        No active quiz for your batch right now. Please wait for your supervisor to start one.
-                    </div>
-                )}
-
-                {quiz && studentBatch && (
-                    <div className="space-y-4">
-                        <div className="p-4 border rounded">
-                            <p className="font-semibold text-lg">{quiz.name}</p>
-                            <p className="text-sm text-gray-600">Duration: {quiz.duration} minutes | Questions: {quiz.questionCount}</p>
-                            <p className="text-sm text-gray-600">Subject: {quiz.subject} | Level: {quiz.level}</p>
-                        </div>
-
-                        <div className="flex gap-2">
-                            <button type="button"
-                                onClick={() => startStudentAttempt(studentBatch.id)}
-                                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2"
-                            >
-                                <Play size={16} /> Start Quiz
-                            </button>
-
-                            <button type="button"
-                                onClick={() => setCurrentView(VIEWS.STUDENT_RESULTS)}
-                                className="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300"
-                            >
-                                View My Results
-                            </button>
-                        </div>
-                    </div>
-                )}
-            </div>
-        );
-    };
-
-    // Student results view: list attempts for current student
-    const StudentResultsView = () => {
-        if (!currentUser) return <div />;
-
-        const attempts = quizAttempts.filter(a => a.studentId === currentUser.id);
-
-        return (
-            <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-2xl font-bold mb-4">My Results</h2>
-
-                {attempts.length === 0 && (
-                    <div className="p-4 bg-yellow-50 border rounded text-sm text-gray-700">
-                        No attempts found yet.
-                    </div>
-                )}
-
-                <div className="space-y-3">
-                    {attempts.map(a => {
-                        const quiz = quizzes.find(q => q.id === a.quizId);
-                        return (
-                            <div key={a.id} className="p-3 border rounded flex justify-between items-center">
-                                <div>
-                                    <p className="font-medium">{quiz?.name || 'Quiz'}</p>
-                                    <p className="text-sm text-gray-600">Score: {a.score}/{a.total} � {a.percentage}%</p>
-                                    <p className="text-sm text-gray-500">Started: {new Date(a.startedAt).toLocaleString()}</p>
-                                    {a.finishedAt && <p className="text-sm text-gray-500">Finished: {new Date(a.finishedAt).toLocaleString()}</p>}
-                                </div>
-                                <div>
-                                    <button type="button" onClick={() => {
-                                        setCurrentAttempt(a);
-                                        setCurrentView(VIEWS.STUDENT_REVIEW);
-                                    }} className="text-sm text-blue-600 hover:underline">Review</button>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-        );
-    };
-
-    // Review view: shows a finished attempt with selected answers and correct answers
-    const StudentReviewView = () => {
-        if (!currentAttempt) return <div className="p-4 bg-yellow-50 rounded">No attempt to review.</div>;
-
-        const quiz = quizzes.find(q => q.id === currentAttempt.quizId);
-        const qlist = currentAttempt.questionIds.map((qid: string) => questions.find(q => q.id === qid)).filter(Boolean);
-
-        return (
-            <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold">{quiz?.name} � Review</h2>
-                    <button type="button" onClick={() => { setCurrentAttempt(null); setCurrentView(VIEWS.STUDENT_RESULTS); }} className="text-sm text-blue-600 hover:underline">Back</button>
-                </div>
-
-                <div className="space-y-4">
-                    {qlist.map((q: any, idx: number) => {
-                        const ans = currentAttempt.answers.find((a: any) => a.questionId === q.id);
-                        return (
-                            <div key={q.id} className="p-3 border rounded">
-                                <p className="font-medium mb-2">{idx + 1}. {q.question}</p>
-                                <div className="space-y-1">
-                                    {q.options.map((opt: string, i: number) => {
-                                        const isSelected = ans && ans.selected === i;
-                                        const isCorrect = q.correctAnswer === i;
-                                        const cls = isCorrect ? 'bg-green-100' : isSelected ? 'bg-yellow-100' : 'bg-white';
-                                        return (
-                                            <div key={i} className={`p-2 border rounded ${cls}`}>
-                                                <div className="flex items-center justify-between">
-                                                    <span>{opt}</span>
-                                                    <div className="text-sm text-gray-600">
-                                                        {isCorrect && <span className="text-green-700 font-semibold">Correct</span>}
-                                                        {!isCorrect && isSelected && <span className="text-yellow-700">Your answer</span>}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-        );
-    };
 
     if (currentView === VIEWS.LOGIN) {
         return (
@@ -1724,11 +1407,47 @@ const QuizPlatform = () => {
                 {currentUser?.role === 'owner' && <OwnerView key={homeKey} />}
                 {currentUser?.role === 'administrator' && <AdministratorView key={homeKey} />}
                 {currentUser?.role === 'supervisor' && <SupervisorView key={homeKey} />}
-                {currentUser?.role === 'student' && currentView === VIEWS.STUDENT_QUIZ && <StudentQuizView />}
-                {currentUser?.role === 'student' && currentView === VIEWS.STUDENT_TAKING && <StudentTakingView />}
-                {currentUser?.role === 'student' && currentView === VIEWS.STUDENT_RESULTS && <StudentResultsView />}
-                {/* Allow review page to be opened by supervisors/admins as well � render regardless of role when selected */}
-                {currentView === VIEWS.STUDENT_REVIEW && <StudentReviewView />}
+                {currentUser?.role === 'student' && currentView === VIEWS.STUDENT_QUIZ && (
+                    <StudentQuizView
+                        currentUser={currentUser}
+                        students={students}
+                        batches={batches}
+                        quizzes={quizzes}
+                        startStudentAttempt={startStudentAttempt}
+                        setCurrentView={setCurrentView}
+                    />
+                )}
+                {currentUser?.role === 'student' && currentView === VIEWS.STUDENT_TAKING && (
+                    <StudentTakingView
+                        currentAttempt={currentAttempt}
+                        quizzes={quizzes}
+                        questions={questions}
+                        quizAttempts={quizAttempts}
+                        setCurrentAttempt={setCurrentAttempt}
+                        setQuizAttempts={setQuizAttempts}
+                        setCurrentView={setCurrentView}
+                        saveData={saveData}
+                    />
+                )}
+                {currentUser?.role === 'student' && currentView === VIEWS.STUDENT_RESULTS && (
+                    <StudentResultsView
+                        currentUser={currentUser}
+                        quizAttempts={quizAttempts}
+                        quizzes={quizzes}
+                        setCurrentAttempt={setCurrentAttempt}
+                        setCurrentView={setCurrentView}
+                    />
+                )}
+                {/* Allow review page to be opened by supervisors/admins as well – render regardless of role when selected */}
+                {currentView === VIEWS.STUDENT_REVIEW && (
+                    <StudentReviewView
+                        currentAttempt={currentAttempt}
+                        quizzes={quizzes}
+                        questions={questions}
+                        setCurrentAttempt={setCurrentAttempt}
+                        setCurrentView={setCurrentView}
+                    />
+                )}
             </div>
         </div>
     );
