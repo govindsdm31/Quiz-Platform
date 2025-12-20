@@ -7,7 +7,7 @@ export const DB_STORAGE_KEY = 'sqljs-db';
 export const PLATFORM_DATA_KEY = 'platform-data';
 export const REMEMBERED_USERNAME_KEY = 'rememberedUsername';
 
-// Initial owner user
+// Initial demo users for all roles
 export const INITIAL_OWNER = {
   id: 'owner-1',
   username: 'owner',
@@ -15,6 +15,37 @@ export const INITIAL_OWNER = {
   role: 'owner' as const,
   active: true
 };
+
+export const DEMO_USERS = [
+  INITIAL_OWNER,
+  {
+    id: 'admin-demo',
+    username: 'admin',
+    password: 'admin123',
+    role: 'administrator' as const,
+    active: true,
+    collabSpaceId: 'demo-space'
+  },
+  {
+    id: 'supervisor-demo',
+    username: 'supervisor',
+    password: 'super123',
+    role: 'supervisor' as const,
+    active: true,
+    batchIds: ['demo-batch'],
+    collabSpaceId: 'demo-space'
+  },
+  {
+    id: 'student-demo',
+    username: 'student',
+    password: 'student123',
+    role: 'student' as const,
+    active: true,
+    name: 'Demo Student',
+    batchId: 'demo-batch',
+    collabSpaceId: 'demo-space'
+  }
+];
 
 // SQL.js configuration
 export const SQLJS_CDN_URL = 'https://sql.js.org/dist/';

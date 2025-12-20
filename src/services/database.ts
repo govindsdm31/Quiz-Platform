@@ -6,7 +6,7 @@
  * with the existing in-memory state shape.
  */
 
-import { DB_STORAGE_KEY, PLATFORM_DATA_KEY, SQLJS_CDN_URL, INITIAL_OWNER } from '../constants';
+import { DB_STORAGE_KEY, PLATFORM_DATA_KEY, SQLJS_CDN_URL, DEMO_USERS } from '../constants';
 import type { PlatformData } from '../types';
 
 export class DatabaseService {
@@ -143,16 +143,35 @@ export class DatabaseService {
       console.error('Storage error:', err);
     }
 
-    // No existing data found - create initial data with owner user
+    // No existing data found - create initial data with demo users
+    const demoSpace = {
+      id: 'demo-space',
+      name: 'Demo Collaboration Space',
+      active: true,
+      createdAt: new Date().toISOString()
+    };
+
+    const demoBatch = {
+      id: 'demo-batch',
+      quizId: '',
+      schoolName: 'Demo School',
+      studentIds: ['student-demo'],
+      supervisorIds: ['supervisor-demo'],
+      active: true,
+      activeQuizId: null,
+      collabSpaceId: 'demo-space',
+      createdAt: new Date().toISOString()
+    };
+
     const initialData: PlatformData = {
-      users: [INITIAL_OWNER],
-      collabSpaces: [],
-      administrators: [],
+      users: DEMO_USERS,
+      collabSpaces: [demoSpace],
+      administrators: [DEMO_USERS[1] as any], // admin user
       questions: [],
       quizzes: [],
-      batches: [],
-      students: [],
-      supervisors: [],
+      batches: [demoBatch],
+      students: [DEMO_USERS[3] as any], // student user
+      supervisors: [DEMO_USERS[2] as any], // supervisor user
       quizAttempts: [],
       questionSets: []
     };
