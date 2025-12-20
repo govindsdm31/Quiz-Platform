@@ -17,6 +17,19 @@ import type {
   StudentCreationResult,
   ActiveQuizSession
 } from './types';
+import {
+  DB_STORAGE_KEY,
+  PLATFORM_DATA_KEY,
+  REMEMBERED_USERNAME_KEY,
+  INITIAL_OWNER,
+  SQLJS_CDN_URL,
+  STUDENT_USERNAME_LENGTH,
+  STUDENT_USERNAME_CHARS,
+  OPTIONS_PER_QUESTION,
+  CSV_QUESTION_SEPARATOR,
+  CSV_OPTION_SEPARATOR,
+  VIEWS
+} from './constants';
 
 /*
   Persist platform data into an in-browser SQLite database using sql.js.
@@ -25,9 +38,6 @@ import type {
     under key "platform-data" for compatibility with the existing in-memory state shape.
   - This approach gives you a real SQLite file in the browser while keeping the code changes minimal.
 */
-
-const DB_STORAGE_KEY = 'sqljs-db';
-const PLATFORM_DATA_KEY = 'platform-data';
 
 const QuizPlatform = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -63,7 +73,7 @@ const QuizPlatform = () => {
         // dynamic import so bundlers that don't include sql.js won't break until this runs
         try {
             const initSqlJs = (await import('sql.js')).default;
-            const SQL = await initSqlJs({ locateFile: (file: string) => `https://sql.js.org/dist/${file}` });
+            const SQL = await initSqlJs({ locateFile: (file: string) => `${SQLJS_CDN_URL}${file}` });
             SQLRef.current = SQL;
 
             // Try load DB from localStorage
@@ -186,13 +196,7 @@ const QuizPlatform = () => {
                     writePlatformDataToDb(data);
                 } else {
                     // Create initial owner user and save into DB
-                    const initialUsers: User[] = [{
-                        id: 'owner-1',
-                        username: 'owner',
-                        password: 'owner123',
-                        role: 'owner' as const,
-                        active: true
-                    }];
+                    const initialUsers: User[] = [INITIAL_OWNER];
                     const data = {
                         users: initialUsers,
                         collabSpaces: [],
@@ -211,13 +215,7 @@ const QuizPlatform = () => {
             } catch (err) {
                 console.error('Storage error:', err);
                 // fallback in-memory initial user
-                const initialUsers: User[] = [{
-                    id: 'owner-1',
-                    username: 'owner',
-                    password: 'owner123',
-                    role: 'owner' as const,
-                    active: true
-                }];
+                const initialUsers: User[] = [INITIAL_OWNER];
                 setUsers(initialUsers);
                 writePlatformDataToDb({
                     users: initialUsers,
@@ -238,7 +236,7 @@ const QuizPlatform = () => {
 
         // load remembered username
         try {
-            const remembered = localStorage.getItem('rememberedUsername');
+            const remembered = localStorage.getItem(REMEMBERED_USERNAME_KEY);
             if (remembered) {
                 setLoginForm(prev => ({ ...prev, username: remembered }));
                 setRememberMe(true);
@@ -314,9 +312,9 @@ const QuizPlatform = () => {
 
         try {
             if (rememberMe) {
-                localStorage.setItem('rememberedUsername', loginForm.username);
+                localStorage.setItem(REMEMBERED_USERNAME_KEY, loginForm.username);
             } else {
-                localStorage.removeItem('rememberedUsername');
+                localStorage.removeItem(REMEMBERED_USERNAME_KEY);
             }
         } catch (e) {
             console.warn('Could not access localStorage', e);
@@ -334,16 +332,16 @@ const QuizPlatform = () => {
         }
 
         setCurrentUser(user);
-        setCurrentView(user.role === 'owner' ? 'collab-spaces' :
-            user.role === 'administrator' ? 'questions' :
-                user.role === 'supervisor' ? 'batches' : 'student-quiz');
+        setCurrentView(user.role === 'owner' ? VIEWS.COLLAB_SPACES :
+            user.role === 'administrator' ? VIEWS.QUESTIONS :
+                user.role === 'supervisor' ? VIEWS.BATCHES : VIEWS.STUDENT_QUIZ);
         setLoginForm({ username: '', password: '' });
         setShowPassword(false);
     };
 
     const handleLogout = () => {
         setCurrentUser(null);
-        setCurrentView('login');
+        setCurrentView(VIEWS.LOGIN);
         setActiveQuiz(null);
         setCurrentAttempt(null);
     };
@@ -351,9 +349,9 @@ const QuizPlatform = () => {
     const goHome = () => {
         // reset role views by incrementing homeKey (forces remount of role components)
         setHomeKey(k => k + 1);
-        setCurrentView(currentUser?.role === 'owner' ? 'collab-spaces' :
-            currentUser?.role === 'administrator' ? 'questions' :
-                currentUser?.role === 'supervisor' ? 'batches' : 'student-quiz');
+        setCurrentView(currentUser?.role === 'owner' ? VIEWS.COLLAB_SPACES :
+            currentUser?.role === 'administrator' ? VIEWS.QUESTIONS :
+                currentUser?.role === 'supervisor' ? VIEWS.BATCHES : VIEWS.STUDENT_QUIZ);
     };
 
     const createCollabSpace = (name: string) => {
@@ -423,15 +421,15 @@ const QuizPlatform = () => {
         const errors: string[] = [];
 
         lines.forEach((line, idx) => {
-            // expected: <QuestionNumber>@@<QUESTION>@@<Options seperated by||>@@<Answer>
-            const parts = line.split('@@').map(p => p.trim());
+            // expected: <QuestionNumber>@@<QUESTION>@@<Options separated by||>@@<Answer>
+            const parts = line.split(CSV_QUESTION_SEPARATOR).map(p => p.trim());
             if (parts.length < 4) {
                 errors.push(`Line ${idx + 1}: invalid format`);
                 return;
             }
 
             const qText = parts[1];
-            const opts = parts[2].split('||').map(o => o.trim()).filter(Boolean);
+            const opts = parts[2].split(CSV_OPTION_SEPARATOR).map(o => o.trim()).filter(Boolean);
             if (opts.length === 0) {
                 errors.push(`Line ${idx + 1}: no options`);
                 return;
@@ -456,9 +454,9 @@ const QuizPlatform = () => {
                 correctIndex = 0;
             }
 
-            // ensure exactly 4 options (pad or slice)
-            while (opts.length < 4) opts.push(`Option ${String.fromCharCode(65 + opts.length)}`);
-            if (opts.length > 4) opts.splice(4);
+            // ensure exactly OPTIONS_PER_QUESTION options (pad or slice)
+            while (opts.length < OPTIONS_PER_QUESTION) opts.push(`Option ${String.fromCharCode(65 + opts.length)}`);
+            if (opts.length > OPTIONS_PER_QUESTION) opts.splice(OPTIONS_PER_QUESTION);
 
             const q: Question = {
                 id: `q-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`,
@@ -616,12 +614,11 @@ const QuizPlatform = () => {
         return newBatch.id;
     };
 
-    // generate short unique username (6 chars) for students
+    // generate short unique username for students
     const generateUniqueShortUsername = (): string => {
-        const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
         const tryGenerate = () => {
             let s = '';
-            for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+            for (let i = 0; i < STUDENT_USERNAME_LENGTH; i++) s += STUDENT_USERNAME_CHARS[Math.floor(Math.random() * STUDENT_USERNAME_CHARS.length)];
             return s;
         };
 
@@ -1308,7 +1305,7 @@ const QuizPlatform = () => {
                                                                     {quizId ? (attempt ? <span className="text-green-700">Completed � {attempt.percentage}%</span> : <span className="text-yellow-700">Incomplete</span>) : <span className="text-gray-600">No quiz</span>}
                                                                 </div>
                                                                 {attempt && (
-                                                                    <button type="button" onClick={() => { setCurrentAttempt(attempt); setCurrentView('student-review'); }} className="text-sm text-blue-600 hover:underline">Review</button>
+                                                                    <button type="button" onClick={() => { setCurrentAttempt(attempt); setCurrentView(VIEWS.STUDENT_REVIEW); }} className="text-sm text-blue-600 hover:underline">Review</button>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -1504,7 +1501,7 @@ const QuizPlatform = () => {
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <div className="font-medium">{a.score}/{a.total} ({a.percentage}%)</div>
-                                                    <button type="button" onClick={() => { setCurrentAttempt(a); setCurrentView('student-review'); }} className="text-sm text-blue-600 hover:underline">Review</button>
+                                                    <button type="button" onClick={() => { setCurrentAttempt(a); setCurrentView(VIEWS.STUDENT_REVIEW); }} className="text-sm text-blue-600 hover:underline">Review</button>
                                                 </div>
                                             </div>
                                         ))}
@@ -1601,7 +1598,7 @@ const QuizPlatform = () => {
                                                         ) : <div className="text-sm text-gray-600">�</div>}
                                                         {batch.activeQuizId && (() => {
                                                             const attempt = getLatestFinishedAttempt(s.id, batch.activeQuizId, batch.id);
-                                                            return attempt ? <button type="button" onClick={() => { setCurrentAttempt(attempt); setCurrentView('student-review'); }} className="text-sm text-blue-600 hover:underline">Review</button> : null;
+                                                            return attempt ? <button type="button" onClick={() => { setCurrentAttempt(attempt); setCurrentView(VIEWS.STUDENT_REVIEW); }} className="text-sm text-blue-600 hover:underline">Review</button> : null;
                                                         })()}
                                                     </div>
                                                 </div>
@@ -1727,7 +1724,7 @@ const QuizPlatform = () => {
         saveData({ quizAttempts: updatedAttempts });
 
         // navigate to the taking UI
-        setCurrentView('student-taking');
+        setCurrentView(VIEWS.STUDENT_TAKING);
     };
 
     // Student taking UI: question navigation, answer selection, timer, submit/grading
@@ -1763,7 +1760,7 @@ const QuizPlatform = () => {
             return (
                 <div className="bg-white rounded-lg shadow p-6">
                     <p className="text-sm text-gray-700">No active attempt. Return to your quizzes.</p>
-                    <button type="button" onClick={() => setCurrentView('student-quiz')} className="mt-2 text-sm text-blue-600 hover:underline">Back</button>
+                    <button type="button" onClick={() => setCurrentView(VIEWS.STUDENT_QUIZ)} className="mt-2 text-sm text-blue-600 hover:underline">Back</button>
                 </div>
             );
         }
@@ -1825,7 +1822,7 @@ const QuizPlatform = () => {
 
             // clear current attempt and go to results
             setCurrentAttempt(null);
-            setCurrentView('student-results');
+            setCurrentView(VIEWS.STUDENT_RESULTS);
         };
 
         const formatTime = (sec: number) => {
@@ -1960,7 +1957,7 @@ const QuizPlatform = () => {
                             </button>
 
                             <button type="button"
-                                onClick={() => setCurrentView('student-results')}
+                                onClick={() => setCurrentView(VIEWS.STUDENT_RESULTS)}
                                 className="bg-gray-200 px-4 py-2 rounded hover:bg-gray-300"
                             >
                                 View My Results
@@ -2002,7 +1999,7 @@ const QuizPlatform = () => {
                                 <div>
                                     <button type="button" onClick={() => {
                                         setCurrentAttempt(a);
-                                        setCurrentView('student-review');
+                                        setCurrentView(VIEWS.STUDENT_REVIEW);
                                     }} className="text-sm text-blue-600 hover:underline">Review</button>
                                 </div>
                             </div>
@@ -2024,7 +2021,7 @@ const QuizPlatform = () => {
             <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-2xl font-bold">{quiz?.name} � Review</h2>
-                    <button type="button" onClick={() => { setCurrentAttempt(null); setCurrentView('student-results'); }} className="text-sm text-blue-600 hover:underline">Back</button>
+                    <button type="button" onClick={() => { setCurrentAttempt(null); setCurrentView(VIEWS.STUDENT_RESULTS); }} className="text-sm text-blue-600 hover:underline">Back</button>
                 </div>
 
                 <div className="space-y-4">
@@ -2059,7 +2056,7 @@ const QuizPlatform = () => {
         );
     };
 
-    if (currentView === 'login') {
+    if (currentView === VIEWS.LOGIN) {
         return <LoginView />;
     }
 
@@ -2086,11 +2083,11 @@ const QuizPlatform = () => {
                 {currentUser?.role === 'owner' && <OwnerView key={homeKey} />}
                 {currentUser?.role === 'administrator' && <AdministratorView key={homeKey} />}
                 {currentUser?.role === 'supervisor' && <SupervisorView key={homeKey} />}
-                {currentUser?.role === 'student' && currentView === 'student-quiz' && <StudentQuizView />}
-                {currentUser?.role === 'student' && currentView === 'student-taking' && <StudentTakingView />}
-                {currentUser?.role === 'student' && currentView === 'student-results' && <StudentResultsView />}
+                {currentUser?.role === 'student' && currentView === VIEWS.STUDENT_QUIZ && <StudentQuizView />}
+                {currentUser?.role === 'student' && currentView === VIEWS.STUDENT_TAKING && <StudentTakingView />}
+                {currentUser?.role === 'student' && currentView === VIEWS.STUDENT_RESULTS && <StudentResultsView />}
                 {/* Allow review page to be opened by supervisors/admins as well � render regardless of role when selected */}
-                {currentView === 'student-review' && <StudentReviewView />}
+                {currentView === VIEWS.STUDENT_REVIEW && <StudentReviewView />}
             </div>
         </div>
     );
