@@ -11,14 +11,12 @@ import type {
   Quiz,
   Batch,
   QuizAttempt,
-  LoginForm,
   ViewType,
   CSVUploadResult,
   StudentCreationResult,
   ActiveQuizSession
 } from './types';
 import {
-  REMEMBERED_USERNAME_KEY,
   STUDENT_USERNAME_LENGTH,
   STUDENT_USERNAME_CHARS,
   VIEWS
@@ -27,9 +25,9 @@ import { databaseService } from './services/database';
 import { formatTime } from './utils/time';
 import { generateUniqueUsername, generatePassword } from './utils/username';
 import { parseQuestionCSV, readFileAsText, convertToQuestions } from './utils/csv';
+import { useAuth } from './hooks/useAuth';
 
 const QuizPlatform = () => {
-    const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [users, setUsers] = useState<User[]>([]);
     const [collabSpaces, setCollabSpaces] = useState<CollabSpace[]>([]);
     const [administrators, setAdministrators] = useState<Administrator[]>([]);
@@ -43,13 +41,30 @@ const QuizPlatform = () => {
     const [quizAttempts, setQuizAttempts] = useState<QuizAttempt[]>([]);
     const [currentAttempt, setCurrentAttempt] = useState<QuizAttempt | null>(null);
     const [currentView, setCurrentView] = useState<ViewType>('login');
-    const [loginForm, setLoginForm] = useState<LoginForm>({ username: '', password: '' });
-    const [error, setError] = useState<string>('');
-    const [showPassword, setShowPassword] = useState<boolean>(false);
-    const [rememberMe, setRememberMe] = useState<boolean>(false);
 
     // support remounting role views when going "home" so internal view state resets
     const [homeKey, setHomeKey] = useState(0);
+
+    // Authentication hook
+    const {
+        currentUser,
+        loginForm,
+        setLoginForm,
+        error,
+        setError,
+        showPassword,
+        setShowPassword,
+        rememberMe,
+        setRememberMe,
+        handleLogin,
+        handleLogout
+    } = useAuth({
+        users,
+        batches,
+        onViewChange: setCurrentView,
+        onActiveQuizChange: setActiveQuiz,
+        onCurrentAttemptChange: setCurrentAttempt
+    });
 
     useEffect(() => {
         const initData = async () => {
@@ -69,17 +84,6 @@ const QuizPlatform = () => {
         };
 
         initData();
-
-        // load remembered username
-        try {
-            const remembered = localStorage.getItem(REMEMBERED_USERNAME_KEY);
-            if (remembered) {
-                setLoginForm(prev => ({ ...prev, username: remembered }));
-                setRememberMe(true);
-            }
-        } catch (e) {
-            // ignore
-        }
     }, []);
 
     // Central saveData: update in-memory state (if provided) and persist to database
@@ -112,55 +116,6 @@ const QuizPlatform = () => {
 
         // Persist to database (both SQLite and window.storage for backwards compatibility)
         await databaseService.save(data);
-    };
-
-    const handleLogin = () => {
-        setError('');
-        const user = users.find(u =>
-            u.username === loginForm.username &&
-            u.password === loginForm.password &&
-            u.active
-        );
-
-        if (!user) {
-            setError('Invalid credentials or account inactive');
-            return;
-        }
-
-        try {
-            if (rememberMe) {
-                localStorage.setItem(REMEMBERED_USERNAME_KEY, loginForm.username);
-            } else {
-                localStorage.removeItem(REMEMBERED_USERNAME_KEY);
-            }
-        } catch (e) {
-            console.warn('Could not access localStorage', e);
-        }
-
-        if (user.role === 'student') {
-            const studentBatch = batches.find(b =>
-                b.studentIds && b.studentIds.includes(user.id) && b.active
-            );
-
-            if (!studentBatch || !studentBatch.activeQuizId) {
-                setError('No active quiz assigned. Please contact your supervisor.');
-                return;
-            }
-        }
-
-        setCurrentUser(user);
-        setCurrentView(user.role === 'owner' ? VIEWS.COLLAB_SPACES :
-            user.role === 'administrator' ? VIEWS.QUESTIONS :
-                user.role === 'supervisor' ? VIEWS.BATCHES : VIEWS.STUDENT_QUIZ);
-        setLoginForm({ username: '', password: '' });
-        setShowPassword(false);
-    };
-
-    const handleLogout = () => {
-        setCurrentUser(null);
-        setCurrentView(VIEWS.LOGIN);
-        setActiveQuiz(null);
-        setCurrentAttempt(null);
     };
 
     const goHome = () => {
@@ -589,7 +544,7 @@ const QuizPlatform = () => {
                         <button
                             type="button"
                             aria-label={showPassword ? 'Hide password' : 'Show password'}
-                            onClick={() => setShowPassword(prev => !prev)}
+                            onClick={() => setShowPassword(!showPassword)}
                             className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                         >
                             <Eye size={18} />
