@@ -21,12 +21,12 @@ import {
   REMEMBERED_USERNAME_KEY,
   STUDENT_USERNAME_LENGTH,
   STUDENT_USERNAME_CHARS,
-  OPTIONS_PER_QUESTION,
-  CSV_QUESTION_SEPARATOR,
-  CSV_OPTION_SEPARATOR,
   VIEWS
 } from './constants';
 import { databaseService } from './services/database';
+import { formatTime } from './utils/time';
+import { generateUniqueUsername, generatePassword } from './utils/username';
+import { parseQuestionCSV, readFileAsText, convertToQuestions } from './utils/csv';
 
 const QuizPlatform = () => {
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -226,74 +226,24 @@ const QuizPlatform = () => {
         const topics = (topicsString || '').split(',').map(t => t.trim()).filter(Boolean);
         const label = `${subject || 'General'}-${topics.join('-')}-${level || 'medium'}-${Date.now()}`;
 
-        const text = await new Promise<string>((resolve, reject) => {
-            const fr = new FileReader();
-            fr.onload = () => resolve(String(fr.result || ''));
-            fr.onerror = () => reject(new Error('Failed to read file'));
-            fr.readAsText(file);
-        });
+        // Read file content
+        const text = await readFileAsText(file);
 
-        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-        const newQuestions: Question[] = [];
-        const errors: string[] = [];
+        // Parse CSV content
+        const parseResult = parseQuestionCSV(text);
 
-        lines.forEach((line, idx) => {
-            // expected: <QuestionNumber>@@<QUESTION>@@<Options separated by||>@@<Answer>
-            const parts = line.split(CSV_QUESTION_SEPARATOR).map(p => p.trim());
-            if (parts.length < 4) {
-                errors.push(`Line ${idx + 1}: invalid format`);
-                return;
-            }
-
-            const qText = parts[1];
-            const opts = parts[2].split(CSV_OPTION_SEPARATOR).map(o => o.trim()).filter(Boolean);
-            if (opts.length === 0) {
-                errors.push(`Line ${idx + 1}: no options`);
-                return;
-            }
-
-            let answerRaw = parts[3];
-            let correctIndex = -1;
-
-            // try match by option text (case-insensitive)
-            correctIndex = opts.findIndex(o => o.toLowerCase() === answerRaw.toLowerCase());
-
-            // if not found, try numeric index (1-based)
-            if (correctIndex === -1) {
-                const n = parseInt(answerRaw, 10);
-                if (!isNaN(n) && n >= 1 && n <= opts.length) {
-                    correctIndex = n - 1;
-                }
-            }
-
-            // default to 0 if still not found
-            if (correctIndex === -1) {
-                correctIndex = 0;
-            }
-
-            // ensure exactly OPTIONS_PER_QUESTION options (pad or slice)
-            while (opts.length < OPTIONS_PER_QUESTION) opts.push(`Option ${String.fromCharCode(65 + opts.length)}`);
-            if (opts.length > OPTIONS_PER_QUESTION) opts.splice(OPTIONS_PER_QUESTION);
-
-            const q: Question = {
-                id: `q-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`,
-                subject: subject || 'General',
-                topic: topics.join(',') || '',
-                level: level || 'medium',
-                label,
-                question: qText,
-                options: opts,
-                correctAnswer: correctIndex,
-                collabSpaceId: currentUser?.collabSpaceId,
-                createdAt: new Date().toISOString()
-            };
-
-            newQuestions.push(q);
-        });
-
-        if (newQuestions.length === 0) {
-            throw new Error(`No valid questions parsed. Errors: ${errors.join('; ')}`);
+        if (parseResult.questions.length === 0) {
+            throw new Error(`No valid questions parsed. Errors: ${parseResult.errors.join('; ')}`);
         }
+
+        // Convert parsed questions to Question objects
+        const newQuestions = convertToQuestions(parseResult.questions, {
+            subject: subject || 'General',
+            topic: topics.join(',') || '',
+            level: level || 'medium',
+            label,
+            collabSpaceId: currentUser?.collabSpaceId
+        });
 
         const updatedQuestions = [...questions, ...newQuestions];
 
@@ -315,7 +265,7 @@ const QuizPlatform = () => {
         setQuestionSets(updatedSets);
         await saveData({ questions: updatedQuestions, questionSets: updatedSets });
 
-        return { label, added: newQuestions.length, errors, questionSetId: qs.id };
+        return { label, added: newQuestions.length, errors: parseResult.errors, questionSetId: qs.id };
     };
 
     // deleteQuestion now also removes references from questionSets
@@ -433,28 +383,16 @@ const QuizPlatform = () => {
 
     // generate short unique username for students
     const generateUniqueShortUsername = (): string => {
-        const tryGenerate = () => {
-            let s = '';
-            for (let i = 0; i < STUDENT_USERNAME_LENGTH; i++) s += STUDENT_USERNAME_CHARS[Math.floor(Math.random() * STUDENT_USERNAME_CHARS.length)];
-            return s;
-        };
-
-        let attempts = 0;
-        let uname = tryGenerate();
-        while (users.find(u => u.username === uname) && attempts < 10) {
-            uname = tryGenerate();
-            attempts++;
-        }
-        if (users.find(u => u.username === uname)) {
-            // fallback: append timestamp to ensure uniqueness but still short-ish
-            uname = (uname + Date.now().toString().slice(-3)).slice(0, 8);
-        }
-        return uname;
+        return generateUniqueUsername(
+            STUDENT_USERNAME_LENGTH,
+            STUDENT_USERNAME_CHARS,
+            users.map(u => u.username)
+        );
     };
 
     const addStudentToBatch = (batchId: string, name: string): StudentCreationResult => {
         const username = generateUniqueShortUsername();
-        const password = `pass${Math.floor(Math.random() * 10000)}`;
+        const password = generatePassword();
 
         const newStudent: Student = {
             id: `student-${Date.now()}`,
@@ -1640,12 +1578,6 @@ const QuizPlatform = () => {
             // clear current attempt and go to results
             setCurrentAttempt(null);
             setCurrentView(VIEWS.STUDENT_RESULTS);
-        };
-
-        const formatTime = (sec: number) => {
-            const m = Math.floor(sec / 60).toString().padStart(2, '0');
-            const s = Math.floor(sec % 60).toString().padStart(2, '0');
-            return `${m}:${s}`;
         };
 
         return (
