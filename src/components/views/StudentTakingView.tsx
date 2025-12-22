@@ -97,22 +97,27 @@ export function StudentTakingView({
 
   const submitAttempt = () => {
     if (!currentAttempt) return;
+
+    // Get the latest attempt from quizAttempts array to avoid stale closure issue
+    const latestAttempt = quizAttempts.find(a => a.id === currentAttempt.id);
+    if (!latestAttempt) return;
+
     // grade
     let score = 0;
-    for (const a of currentAttempt.answers) {
+    for (const a of latestAttempt.answers) {
       const q = questions.find(q => q.id === a.questionId);
       if (!q) continue;
       if (a.selected !== null && a.selected === q.correctAnswer) score++;
     }
-    const total = currentAttempt.total || currentAttempt.questionIds.length || 0;
+    const total = latestAttempt.total || latestAttempt.questionIds.length || 0;
     const percentage = total > 0 ? ((score / total) * 100).toFixed(2) : '0';
 
     const finished = {
-      ...currentAttempt,
+      ...latestAttempt,
       score,
       percentage: parseFloat(percentage as any),
       finishedAt: new Date().toISOString(),
-      elapsedSeconds: (currentAttempt.timeLimitSeconds || 0) - remaining
+      elapsedSeconds: (latestAttempt.timeLimitSeconds || 0) - remaining
     };
 
     // update attempts list

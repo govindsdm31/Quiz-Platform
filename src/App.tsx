@@ -558,8 +558,13 @@ const QuizPlatform = () => {
             sourceQuestions = (pool.length >= quiz.questionCount) ? pool : fallbackPool;
         }
 
-        // choose up to quiz.questionCount questions (deterministic simple selection)
-        const selected = sourceQuestions.slice(0, quiz.questionCount || sourceQuestions.length);
+        // Randomly select questions using Fisher-Yates shuffle algorithm
+        const shuffled = [...sourceQuestions];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        const selected = shuffled.slice(0, quiz.questionCount || sourceQuestions.length);
         const questionIds = selected.map(q => q.id);
 
         // create attempt with empty answers
@@ -618,7 +623,11 @@ const QuizPlatform = () => {
                         )}
                     </div>
                     <div className="flex items-center gap-4">
-                        <span className="text-gray-700">Welcome, <strong>{currentUser?.username}</strong> ({currentUser?.role})</span>
+                        <span className="text-gray-700">Welcome, <strong>
+                            {currentUser?.role === 'student'
+                                ? students.find(s => s.id === currentUser.id)?.name || currentUser.username
+                                : currentUser?.username}
+                        </strong> ({currentUser?.role})</span>
                         <button type="button" onClick={handleLogout} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 flex items-center gap-2">
                             <LogOut size={16} /> Logout
                         </button>
