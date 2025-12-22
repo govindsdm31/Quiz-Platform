@@ -637,37 +637,43 @@ const QuizPlatform = () => {
     const branding = getBranding();
 
     return (
-        <div className="min-h-screen bg-gray-100">
-            <nav className="bg-white shadow">
+        <div className="min-h-screen bg-gradient-to-br from-[#002147] via-[#003366] to-[#004080]">
+            {/* Decorative background elements */}
+            <div className="fixed inset-0 pointer-events-none">
+                <div className="absolute top-20 left-20 w-96 h-96 bg-[#FFBA00] rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob"></div>
+                <div className="absolute bottom-20 right-20 w-96 h-96 bg-[#FFBA00] rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob" style={{ animationDelay: '2s' }}></div>
+            </div>
+
+            <nav className="bg-white/10 backdrop-blur-md shadow-lg border-b border-white/20 relative z-10">
                 <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
                     <div className="flex items-center gap-4">
                         {branding.logo && (
                             <img src={branding.logo} alt={branding.label || 'Logo'} className="h-10 w-auto object-contain" />
                         )}
                         <div>
-                            <h1 className="text-2xl font-bold text-blue-600">
+                            <h1 className="text-2xl font-bold text-[#FFBA00]">
                                 {branding.label || 'Quiz Platform'}
                             </h1>
-                            {branding.label && <p className="text-xs text-gray-500">Quiz Platform</p>}
+                            {branding.label && <p className="text-xs text-white/80">Quiz Platform</p>}
                         </div>
                         {currentUser && (
-                            <button type="button" onClick={goHome} className="bg-gray-200 text-gray-800 px-3 py-1 rounded hover:bg-gray-300">Home</button>
+                            <button type="button" onClick={goHome} className="bg-[#FFBA00] text-[#002147] px-3 py-1 rounded hover:bg-[#FFBA00]/90 font-semibold transition-all">Home</button>
                         )}
                     </div>
                     <div className="flex items-center gap-4">
-                        <span className="text-gray-700">Welcome, <strong>
+                        <span className="text-white/90">Welcome, <strong className="text-[#FFBA00]">
                             {currentUser?.role === 'student'
                                 ? students.find(s => s.id === currentUser.id)?.name || currentUser.username
                                 : currentUser?.username}
-                        </strong> ({currentUser?.role})</span>
-                        <button type="button" onClick={handleLogout} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 flex items-center gap-2">
+                        </strong> <span className="text-white/70">({currentUser?.role})</span></span>
+                        <button type="button" onClick={handleLogout} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 flex items-center gap-2 transition-all">
                             <LogOut size={16} /> Logout
                         </button>
                     </div>
                 </div>
             </nav>
 
-            <div className="max-w-7xl mx-auto p-4">
+            <div className="max-w-7xl mx-auto p-4 relative z-10">
                 {currentUser?.role === 'owner' && (
                     <OwnerView
                         key={homeKey}
