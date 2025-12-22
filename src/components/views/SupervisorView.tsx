@@ -29,7 +29,6 @@ export function SupervisorView({
   students,
   supervisors,
   quizzes,
-  quizAttempts,
   startQuiz,
   stopQuiz,
   getLatestFinishedAttempt,
@@ -45,136 +44,269 @@ export function SupervisorView({
   const [addSelection, setAddSelection] = useState<Record<string, string>>({});
   const [newStudentName, setNewStudentName] = useState<Record<string, string>>({}); // per-batch new student input
 
-  // New: track which batches should reveal credentials to the supervisor
-  const [showCredentialsFor, setShowCredentialsFor] = useState<Record<string, boolean>>({});
+  // Drill-down navigation state
+  const [viewMode, setViewMode] = useState<'batches' | 'students'>('batches');
+  const [selectedBatchId, setSelectedBatchId] = useState<string>('');
 
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-2xl font-bold mb-4 text-oxford-blue">My Batches</h2>
-        <div className="space-y-4">
-          {myBatches.length === 0 && (
-            <div className="p-4 border rounded bg-yellow-50 text-gray-700">
-              No batches assigned. Contact your administrator.
-            </div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold text-oxford-blue">My Batches</h2>
+          {viewMode === 'students' && (
+            <button
+              type="button"
+              onClick={() => {
+                setViewMode('batches');
+                setSelectedBatchId('');
+              }}
+              className="px-4 py-2 rounded bg-oxford-blue/10 text-oxford-blue hover:bg-oxford-blue/20"
+            >
+              ← Back to Batches
+            </button>
           )}
+        </div>
 
-          {myBatches.map(batch => {
-            const quiz = quizzes.find(q => q.id === batch.quizId);
-            const batchStudents = students.filter(s => s.batchId === batch.id);
-            const batchAttempts = quizAttempts.filter(a => a.batchId === batch.id);
+        {/* Level 1: Batch List */}
+        {viewMode === 'batches' && (
+          <div className="space-y-3">
+            {myBatches.length === 0 ? (
+              <div className="p-4 bg-selective-yellow/10 border border-selective-yellow rounded text-gray-700">
+                No batches assigned. Contact your administrator.
+              </div>
+            ) : (
+              myBatches.map(batch => {
+                const quiz = quizzes.find(q => q.id === batch.quizId);
+                const batchStudents = students.filter(s => s.batchId === batch.id);
+                const completedCount = batchStudents.filter(s => {
+                  if (!batch.activeQuizId) return false;
+                  const attempt = getLatestFinishedAttempt(s.id, batch.activeQuizId, batch.id);
+                  return !!attempt;
+                }).length;
 
-            return (
-              <div key={batch.id} className="p-4 border rounded">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="font-bold text-lg">{batch.schoolName}</h3>
-                    <p className="text-sm text-gray-600">Quiz: {quiz?.name || '–'} | Students: {batchStudents.length}</p>
-                  </div>
+                let statusBadge = '';
+                let statusColor = '';
+                if (!batch.activeQuizId) {
+                  statusBadge = 'Not Started';
+                  statusColor = 'bg-gray-100 text-gray-600';
+                } else if (completedCount === 0) {
+                  statusBadge = 'In Progress';
+                  statusColor = 'bg-yellow-100 text-yellow-700';
+                } else if (completedCount < batchStudents.length) {
+                  statusBadge = 'In Progress';
+                  statusColor = 'bg-yellow-100 text-yellow-700';
+                } else {
+                  statusBadge = 'Completed';
+                  statusColor = 'bg-green-100 text-green-700';
+                }
 
-                  <div className="flex gap-2">
-                    {!batch.activeQuizId ? (
-                      <button type="button" onClick={() => startQuiz(batch.id)} className="bg-oxford-blue text-white px-4 py-2 rounded hover:bg-oxford-blue/90 flex items-center gap-2">
-                        <Play size={16} /> Start Quiz
-                      </button>
-                    ) : (
-                      <button type="button" onClick={() => stopQuiz(batch.id)} className="bg-selective-yellow text-oxford-blue px-4 py-2 rounded hover:bg-selective-yellow/90 font-semibold flex items-center gap-2">
-                        <Square size={16} /> Stop Quiz
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mb-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold">Student Credentials:</h4>
-                    {/* Toggle to reveal/hide credentials for this specific batch */}
-                    <button type="button"
-                      onClick={() => setShowCredentialsFor(prev => ({ ...prev, [batch.id]: !prev[batch.id] }))}
-                      className="px-3 py-1 rounded bg-gray-200 hover:bg-gray-300 text-sm"
-                    >
-                      {showCredentialsFor[batch.id] ? 'Hide credentials' : 'Show credentials'}
-                    </button>
-                  </div>
-
-                  <div className="space-y-1 max-h-40 overflow-y-auto">
-                    {batchStudents.length === 0 && <div className="text-sm text-gray-600">No students in this batch.</div>}
-                    {batchStudents.map(s => (
-                      <div key={s.id} className="text-sm p-2 bg-gray-50 rounded flex justify-between items-center">
-                        <div>
-                          <div className="font-medium">{s.name}</div>
-                          <div className="text-xs text-gray-600">
-                            {s.username}
-                            {showCredentialsFor[batch.id] && (
-                              <span className="ml-3"> / {s.password}</span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {/* completion status */}
-                          {batch.activeQuizId ? (
-                            (() => {
-                              const attempt = getLatestFinishedAttempt(s.id, batch.activeQuizId, batch.id);
-                              return attempt ? <div className="text-sm text-green-700">{attempt.percentage}%</div> : <div className="text-sm text-yellow-700">Not done</div>;
-                            })()
-                          ) : <div className="text-sm text-gray-600">–</div>}
-                          {batch.activeQuizId && (() => {
-                            const attempt = getLatestFinishedAttempt(s.id, batch.activeQuizId, batch.id);
-                            return attempt ? <button type="button" onClick={() => { setCurrentAttempt(attempt); setCurrentView(VIEWS.STUDENT_REVIEW); }} className="text-sm bg-oxford-blue text-white px-2 py-1 rounded hover:bg-oxford-blue/90">Review</button> : null;
-                          })()}
-                        </div>
+                return (
+                  <div key={batch.id} className="p-4 border border-oxford-blue/20 rounded hover:bg-oxford-blue/5">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedBatchId(batch.id);
+                            setViewMode('students');
+                          }}
+                          className="font-semibold text-lg text-oxford-blue hover:underline text-left"
+                        >
+                          {batch.schoolName}
+                        </button>
+                        <p className="text-sm text-gray-600">
+                          Quiz: {quiz?.name || '–'} | {batchStudents.length} student(s) | {completedCount} completed
+                        </p>
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mt-2 flex gap-2 items-center">
-                  <select
-                    className="p-2 border rounded"
-                    value={addSelection[batch.id] || ''}
-                    onChange={(e) => setAddSelection(prev => ({ ...prev, [batch.id]: e.target.value }))}
-                  >
-                    <option value="">Add existing student</option>
-                    {myStudents.filter(s => s.batchId !== batch.id).map(s => <option key={s.id} value={s.id}>{s.name} ({s.username})</option>)}
-                  </select>
-                  <button type="button" onClick={() => {
-                    const sid = addSelection[batch.id];
-                    if (!sid) return alert('Select a student to add');
-                    const ok = addExistingStudentToBatch(batch.id, sid);
-                    if (ok) {
-                      alert('Student added to batch');
-                      setAddSelection(prev => ({ ...prev, [batch.id]: '' }));
-                    }
-                  }} className="px-3 py-1 rounded bg-oxford-blue text-white hover:bg-oxford-blue/90">Add</button>
-
-                  {/* New student creation (supervisor) */}
-                  <input placeholder="New student name" className="p-2 border rounded" value={newStudentName[batch.id] || ''} onChange={(e) => setNewStudentName(prev => ({ ...prev, [batch.id]: e.target.value }))} />
-                  <button type="button" onClick={() => {
-                    const name = newStudentName[batch.id];
-                    if (!name) return alert('Enter a name');
-                    const creds = addStudentToBatch(batch.id, name);
-                    setNewStudentName(prev => ({ ...prev, [batch.id]: '' }));
-                    alert(`Created student ${name}: ${creds.username} / ${creds.password}`);
-                  }} className="px-3 py-1 rounded bg-oxford-blue text-white hover:bg-oxford-blue/90">Create & Add</button>
-                </div>
-
-                {batchAttempts.length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="font-semibold mb-2">Results:</h4>
-                    <div className="space-y-1">
-                      {batchAttempts.map(attempt => (
-                        <div key={attempt.id} className="text-sm p-2 bg-blue-50 rounded flex justify-between">
-                          <span>{attempt.studentName}</span>
-                          <span className="font-medium">{attempt.score}/{attempt.total} ({attempt.percentage}%)</span>
-                        </div>
-                      ))}
+                      <div className="flex items-center gap-3">
+                        <span className={`px-3 py-1 rounded text-sm font-medium ${statusColor}`}>
+                          {statusBadge}
+                        </span>
+                        {!batch.activeQuizId ? (
+                          <button
+                            type="button"
+                            onClick={() => startQuiz(batch.id)}
+                            className="bg-oxford-blue text-white px-4 py-2 rounded hover:bg-oxford-blue/90 flex items-center gap-2"
+                          >
+                            <Play size={16} /> Start Quiz
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => stopQuiz(batch.id)}
+                            className="bg-selective-yellow text-oxford-blue px-4 py-2 rounded hover:bg-selective-yellow/90 font-semibold flex items-center gap-2"
+                          >
+                            <Square size={16} /> Stop Quiz
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {/* Level 2: Student List for Selected Batch */}
+        {viewMode === 'students' && selectedBatchId && (
+          <div className="space-y-3">
+            {(() => {
+              const selectedBatch = myBatches.find(b => b.id === selectedBatchId);
+              const quiz = quizzes.find(q => q.id === selectedBatch?.quizId);
+              const batchStudents = students.filter(s => s.batchId === selectedBatchId);
+
+              return (
+                <>
+                  <div className="mb-4 p-4 bg-oxford-blue/5 rounded border border-oxford-blue/20">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-lg text-oxford-blue">{selectedBatch?.schoolName}</h3>
+                        <p className="text-sm text-gray-600">Quiz: {quiz?.name || '–'}</p>
+                        <p className="text-sm text-gray-600">{batchStudents.length} student(s)</p>
+                      </div>
+                      <div>
+                        {!selectedBatch?.activeQuizId ? (
+                          <button
+                            type="button"
+                            onClick={() => startQuiz(selectedBatchId)}
+                            className="bg-oxford-blue text-white px-4 py-2 rounded hover:bg-oxford-blue/90 flex items-center gap-2"
+                          >
+                            <Play size={16} /> Start Quiz
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => stopQuiz(selectedBatchId)}
+                            className="bg-selective-yellow text-oxford-blue px-4 py-2 rounded hover:bg-selective-yellow/90 font-semibold flex items-center gap-2"
+                          >
+                            <Square size={16} /> Stop Quiz
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {batchStudents.length === 0 ? (
+                    <p className="text-gray-600">No students in this batch yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-oxford-blue">Students:</h4>
+                      {batchStudents.map(student => {
+                        const quizId = selectedBatch?.activeQuizId || selectedBatch?.quizId;
+                        const attempt = quizId ? getLatestFinishedAttempt(student.id, quizId, selectedBatchId) : null;
+
+                        let statusBadge = '';
+                        let statusColor = '';
+                        if (!selectedBatch?.activeQuizId) {
+                          statusBadge = 'Quiz Not Active';
+                          statusColor = 'bg-gray-100 text-gray-600';
+                        } else if (!attempt) {
+                          statusBadge = 'Not Completed';
+                          statusColor = 'bg-yellow-100 text-yellow-700';
+                        } else {
+                          statusBadge = 'Completed';
+                          statusColor = 'bg-green-100 text-green-700';
+                        }
+
+                        return (
+                          <div key={student.id} className="p-4 border border-oxford-blue/20 rounded bg-white">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <p className="font-semibold text-oxford-blue">{student.name}</p>
+                                <p className="text-sm text-gray-600">
+                                  Username: <span className="font-mono font-medium">{student.username}</span> |
+                                  Password: <span className="font-mono font-medium">{student.password}</span>
+                                </p>
+                                {attempt && (
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    Score: {attempt.score}/{attempt.total} ({attempt.percentage}%) |
+                                    Submitted: {new Date(attempt.finishedAt!).toLocaleString()}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className={`px-3 py-1 rounded text-sm font-medium ${statusColor}`}>
+                                  {statusBadge}
+                                </span>
+                                {attempt && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setCurrentAttempt(attempt);
+                                      setCurrentView(VIEWS.STUDENT_REVIEW);
+                                    }}
+                                    className="px-3 py-1 rounded bg-oxford-blue text-white hover:bg-oxford-blue/90 text-sm"
+                                  >
+                                    Review
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div className="mt-4 p-4 bg-white border border-oxford-blue/20 rounded">
+                    <h4 className="font-semibold mb-3 text-oxford-blue">Add Student to This Batch:</h4>
+                    <div className="flex gap-2 items-center flex-wrap">
+                      <select
+                        className="p-2 border rounded"
+                        value={addSelection[selectedBatchId] || ''}
+                        onChange={(e) => setAddSelection(prev => ({ ...prev, [selectedBatchId]: e.target.value }))}
+                      >
+                        <option value="">Select existing student</option>
+                        {myStudents.filter(s => s.batchId !== selectedBatchId).map(s => (
+                          <option key={s.id} value={s.id}>{s.name} ({s.username})</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const sid = addSelection[selectedBatchId];
+                          if (!sid) return alert('Select a student to add');
+                          const ok = addExistingStudentToBatch(selectedBatchId, sid);
+                          if (ok) {
+                            alert('Student added to batch');
+                            setAddSelection(prev => ({ ...prev, [selectedBatchId]: '' }));
+                          }
+                        }}
+                        className="px-4 py-2 rounded bg-oxford-blue text-white hover:bg-oxford-blue/90"
+                      >
+                        Add Existing
+                      </button>
+
+                      <div className="w-px h-8 bg-gray-300" />
+
+                      <input
+                        type="text"
+                        placeholder="New student name"
+                        className="p-2 border rounded"
+                        value={newStudentName[selectedBatchId] || ''}
+                        onChange={(e) => setNewStudentName(prev => ({ ...prev, [selectedBatchId]: e.target.value }))}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const name = newStudentName[selectedBatchId];
+                          if (!name) return alert('Enter a student name');
+                          const creds = addStudentToBatch(selectedBatchId, name);
+                          setNewStudentName(prev => ({ ...prev, [selectedBatchId]: '' }));
+                          alert(`Created student ${name}:\nUsername: ${creds.username}\nPassword: ${creds.password}`);
+                        }}
+                        className="px-4 py-2 rounded bg-oxford-blue text-white hover:bg-oxford-blue/90"
+                      >
+                        Create New Student
+                      </button>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        )}
       </div>
     </div>
   );
