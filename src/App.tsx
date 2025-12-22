@@ -614,12 +614,42 @@ const QuizPlatform = () => {
         );
     }
 
+    // Get branding information for navigation
+    const getBranding = (): { logo?: string; label?: string } => {
+        if (!currentUser) return {};
+
+        if (currentUser.role === 'administrator') {
+            const admin = administrators.find(a => a.id === currentUser.id);
+            return { logo: admin?.logoUrl, label: admin?.label };
+        } else if (currentUser.role === 'supervisor') {
+            const admin = administrators.find(a => a.collabSpaceId === currentUser.collabSpaceId);
+            return { logo: admin?.logoUrl, label: admin?.label };
+        } else if (currentUser.role === 'student') {
+            const student = students.find(s => s.id === currentUser.id);
+            if (student) {
+                const admin = administrators.find(a => a.collabSpaceId === student.collabSpaceId);
+                return { logo: admin?.logoUrl, label: admin?.label };
+            }
+        }
+        return {};
+    };
+
+    const branding = getBranding();
+
     return (
         <div className="min-h-screen bg-gray-100">
             <nav className="bg-white shadow">
                 <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
                     <div className="flex items-center gap-4">
-                        <h1 className="text-2xl font-bold text-blue-600">Quiz Platform</h1>
+                        {branding.logo && (
+                            <img src={branding.logo} alt={branding.label || 'Logo'} className="h-10 w-auto object-contain" />
+                        )}
+                        <div>
+                            <h1 className="text-2xl font-bold text-blue-600">
+                                {branding.label || 'Quiz Platform'}
+                            </h1>
+                            {branding.label && <p className="text-xs text-gray-500">Quiz Platform</p>}
+                        </div>
                         {currentUser && (
                             <button type="button" onClick={goHome} className="bg-gray-200 text-gray-800 px-3 py-1 rounded hover:bg-gray-300">Home</button>
                         )}
