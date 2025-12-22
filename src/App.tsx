@@ -153,14 +153,17 @@ const QuizPlatform = () => {
         saveData({ collabSpaces: updated });
     };
 
-    const createAdministrator = (username: string, password: string, spaceId: string) => {
+    const createAdministrator = (username: string, password: string, spaceId: string, label?: string, address?: string, logoUrl?: string) => {
         const newAdmin: Administrator = {
             id: `admin-${Date.now()}`,
             username,
             password,
             role: 'administrator',
             active: true,
-            collabSpaceId: spaceId
+            collabSpaceId: spaceId,
+            ...(label && { label }),
+            ...(address && { address }),
+            ...(logoUrl && { logoUrl })
         };
         const updatedUsers = [...users, newAdmin];
         const updatedAdmins = [...administrators, newAdmin];
@@ -321,6 +324,12 @@ const QuizPlatform = () => {
         setQuizzes(updated);
         saveData({ quizzes: updated });
         return newQuiz.id;
+    };
+
+    const deleteQuiz = (quizId: string) => {
+        const updated = quizzes.filter(q => q.id !== quizId);
+        setQuizzes(updated);
+        saveData({ quizzes: updated });
     };
 
     // createBatch removed subject param (per request)
@@ -642,6 +651,7 @@ const QuizPlatform = () => {
                         quizAttempts={quizAttempts}
                         uploadQuestionsFromFile={uploadQuestionsFromFile}
                         createQuiz={createQuiz}
+                        deleteQuiz={deleteQuiz}
                         createBatch={createBatch}
                         addStudentToBatch={addStudentToBatch}
                         addExistingStudentToBatch={addExistingStudentToBatch}

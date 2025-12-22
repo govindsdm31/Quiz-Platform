@@ -31,6 +31,7 @@ interface AdministratorViewProps {
   quizAttempts: QuizAttempt[];
   uploadQuestionsFromFile: (file: File, subject: string, topic: string, level: string) => Promise<CSVUploadResult>;
   createQuiz: (name: string, duration: number, questionCount: number, subject: string, level: string, labels: string[], questionSetId?: string) => void;
+  deleteQuiz: (id: string) => void;
   createBatch: (quizId: string, schoolName: string) => void;
   addStudentToBatch: (batchId: string, studentName: string) => StudentCreationResult;
   addExistingStudentToBatch: (batchId: string, studentId: string) => boolean;
@@ -59,6 +60,7 @@ export function AdministratorView({
   quizAttempts,
   uploadQuestionsFromFile,
   createQuiz,
+  deleteQuiz,
   createBatch,
   addStudentToBatch,
   addExistingStudentToBatch,
@@ -246,43 +248,81 @@ export function AdministratorView({
 
       {view === 'quizzes' && (
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-2xl font-bold mb-4">Quizzes</h2>
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            <input type="text" placeholder="Quiz Name" className="p-2 border rounded" value={quizForm.name} onChange={(e) => setQuizForm({ ...quizForm, name: e.target.value })} />
-            <input type="text" placeholder="Label (optional)" className="p-2 border rounded" value={quizForm.label} onChange={(e) => setQuizForm({ ...quizForm, label: e.target.value })} />
-            <input type="number" placeholder="Duration (min)" className="p-2 border rounded" value={quizForm.duration} onChange={(e) => setQuizForm({ ...quizForm, duration: parseInt(e.target.value) || 0 })} />
-            <input type="number" placeholder="Question Count" className="p-2 border rounded" value={quizForm.questionCount} onChange={(e) => setQuizForm({ ...quizForm, questionCount: parseInt(e.target.value) || 0 })} />
-            <input type="text" placeholder="Subject" className="p-2 border rounded" value={quizForm.subject} onChange={(e) => setQuizForm({ ...quizForm, subject: e.target.value })} />
-            <select className="p-2 border rounded" value={quizForm.level} onChange={(e) => setQuizForm({ ...quizForm, level: e.target.value })}>
-              <option value="easy">Easy</option>
-              <option value="medium">Medium</option>
-              <option value="hard">Hard</option>
-            </select>
+          <h2 className="text-2xl font-bold mb-4 text-oxford-blue">Create Quiz</h2>
+          <div className="grid grid-cols-3 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-oxford-blue mb-1">Quiz Name *</label>
+              <input type="text" placeholder="Enter quiz name" className="w-full p-2 border rounded" value={quizForm.name} onChange={(e) => setQuizForm({ ...quizForm, name: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-oxford-blue mb-1">Label (optional)</label>
+              <input type="text" placeholder="e.g., Final Exam" className="w-full p-2 border rounded" value={quizForm.label} onChange={(e) => setQuizForm({ ...quizForm, label: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-oxford-blue mb-1">Duration (minutes) *</label>
+              <input type="number" placeholder="30" className="w-full p-2 border rounded" value={quizForm.duration} onChange={(e) => setQuizForm({ ...quizForm, duration: parseInt(e.target.value) || 0 })} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-oxford-blue mb-1">Number of Questions *</label>
+              <input type="number" placeholder="10" className="w-full p-2 border rounded" value={quizForm.questionCount} onChange={(e) => setQuizForm({ ...quizForm, questionCount: parseInt(e.target.value) || 0 })} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-oxford-blue mb-1">Subject *</label>
+              <input type="text" placeholder="e.g., Mathematics" className="w-full p-2 border rounded" value={quizForm.subject} onChange={(e) => setQuizForm({ ...quizForm, subject: e.target.value })} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-oxford-blue mb-1">Difficulty Level</label>
+              <select className="w-full p-2 border rounded" value={quizForm.level} onChange={(e) => setQuizForm({ ...quizForm, level: e.target.value })}>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+            </div>
 
-            <select className="p-2 border rounded" value={quizForm.questionSetId || ''} onChange={(e) => setQuizForm({ ...quizForm, questionSetId: e.target.value })}>
-              <option value="">Select Question Set (optional)</option>
-              {myQuestionSets.map(qs => <option key={qs.id} value={qs.id}>{qs.label} ({qs.questionIds.length})</option>)}
-            </select>
+            <div>
+              <label className="block text-sm font-medium text-oxford-blue mb-1">Question Set (optional)</label>
+              <select className="w-full p-2 border rounded" value={quizForm.questionSetId || ''} onChange={(e) => setQuizForm({ ...quizForm, questionSetId: e.target.value })}>
+                <option value="">None - Random selection</option>
+                {myQuestionSets.map(qs => <option key={qs.id} value={qs.id}>{qs.label} ({qs.questionIds.length})</option>)}
+              </select>
+            </div>
 
-            <button type="button"
-              onClick={() => {
-                if (quizForm.name && quizForm.subject) {
-                  const labels = quizForm.label ? [quizForm.label] : [];
-                  createQuiz(quizForm.name, quizForm.duration, quizForm.questionCount, quizForm.subject, quizForm.level, labels, quizForm.questionSetId || undefined);
-                  setQuizForm({ name: '', label: '', duration: 30, questionCount: 10, subject: '', level: 'medium', questionSetId: '' });
-                }
-              }}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-            >
-              Create Quiz
-            </button>
+            <div className="flex items-end">
+              <button type="button"
+                onClick={() => {
+                  if (quizForm.name && quizForm.subject) {
+                    const labels = quizForm.label ? [quizForm.label] : [];
+                    createQuiz(quizForm.name, quizForm.duration, quizForm.questionCount, quizForm.subject, quizForm.level, labels, quizForm.questionSetId || undefined);
+                    setQuizForm({ name: '', label: '', duration: 30, questionCount: 10, subject: '', level: 'medium', questionSetId: '' });
+                  }
+                }}
+                className="w-full bg-oxford-blue text-white px-4 py-2 rounded hover:bg-oxford-blue/90"
+              >
+                Create Quiz
+              </button>
+            </div>
           </div>
+
+          <h3 className="text-xl font-bold mb-3 mt-6 text-oxford-blue">Existing Quizzes</h3>
 
           <div className="space-y-2">
             {myQuizzes.map(q => (
-              <div key={q.id} className="p-3 border rounded">
-                <p className="font-medium">{q.name}</p>
-                <p className="text-sm text-gray-600">Duration: {q.duration} min | Questions: {q.questionCount} | Subject: {q.subject} | Level: {q.level} {q.labels?.length ? `| Label: ${q.labels.join(', ')}` : ''} {q.questionSetId ? `| Set: ${questionSets.find(s => s.id === q.questionSetId)?.label}` : ''}</p>
+              <div key={q.id} className="p-3 border rounded flex justify-between items-start">
+                <div>
+                  <p className="font-medium text-oxford-blue">{q.name}</p>
+                  <p className="text-sm text-gray-600">Duration: {q.duration} min | Questions: {q.questionCount} | Subject: {q.subject} | Level: {q.level} {q.labels?.length ? `| Label: ${q.labels.join(', ')}` : ''} {q.questionSetId ? `| Set: ${questionSets.find(s => s.id === q.questionSetId)?.label}` : ''}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm(`Delete quiz "${q.name}"? This action cannot be undone.`)) {
+                      deleteQuiz(q.id);
+                    }
+                  }}
+                  className="px-3 py-1 rounded text-sm bg-red-600 text-white hover:bg-red-700 flex items-center gap-1"
+                >
+                  <Trash2 size={14} /> Delete
+                </button>
               </div>
             ))}
           </div>
