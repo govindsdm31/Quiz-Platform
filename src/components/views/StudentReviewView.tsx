@@ -2,11 +2,12 @@
  * Student Review View - Shows a finished quiz attempt with selected and correct answers
  */
 
-import type { Quiz, Question, QuizAttempt } from '../../types';
+import type { Quiz, Question, QuizAttempt, User } from '../../types';
 import { VIEWS } from '../../constants';
 
 interface StudentReviewViewProps {
   currentAttempt: QuizAttempt | null;
+  currentUser: User | null;
   quizzes: Quiz[];
   questions: Question[];
   setCurrentAttempt: (attempt: QuizAttempt | null) => void;
@@ -15,6 +16,7 @@ interface StudentReviewViewProps {
 
 export function StudentReviewView({
   currentAttempt,
+  currentUser,
   quizzes,
   questions,
   setCurrentAttempt,
@@ -31,7 +33,23 @@ export function StudentReviewView({
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold text-oxford-blue">{quiz?.name} – Review</h2>
-        <button type="button" onClick={() => { setCurrentAttempt(null); setCurrentView(VIEWS.STUDENT_RESULTS); }} className="text-sm bg-oxford-blue text-white px-3 py-1 rounded hover:bg-oxford-blue/90">Back</button>
+        <button
+          type="button"
+          onClick={() => {
+            setCurrentAttempt(null);
+            // Navigate back to appropriate view based on user role
+            if (currentUser?.role === 'supervisor') {
+              setCurrentView(VIEWS.BATCHES);
+            } else if (currentUser?.role === 'administrator') {
+              setCurrentView(VIEWS.QUESTIONS);
+            } else {
+              setCurrentView(VIEWS.STUDENT_RESULTS);
+            }
+          }}
+          className="text-sm bg-oxford-blue text-white px-3 py-1 rounded hover:bg-oxford-blue/90"
+        >
+          Back
+        </button>
       </div>
 
       <div className="space-y-4">

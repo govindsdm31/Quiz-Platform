@@ -733,6 +733,7 @@ const QuizPlatform = () => {
                 {currentView === VIEWS.STUDENT_REVIEW && (
                     <StudentReviewView
                         currentAttempt={currentAttempt}
+                        currentUser={currentUser}
                         quizzes={quizzes}
                         questions={questions}
                         setCurrentAttempt={setCurrentAttempt}
