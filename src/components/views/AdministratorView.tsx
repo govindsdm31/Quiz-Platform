@@ -3,7 +3,7 @@
  * This is the largest and most complex view component in the application
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Download, Trash2, UserPlus } from 'lucide-react';
 import type {
   User,
@@ -90,6 +90,11 @@ export function AdministratorView({
   const [batchAddSelections, setBatchAddSelections] = useState<Record<string, string>>({});
   const [expandedBatches, setExpandedBatches] = useState<Record<string, boolean>>({});
   const [selectedQuestionSetId, setSelectedQuestionSetId] = useState<string | null>(null);
+
+  // Reports drill-down navigation state
+  const [reportView, setReportView] = useState<'quizzes' | 'batches' | 'students'>('quizzes');
+  const [selectedReportQuizId, setSelectedReportQuizId] = useState<string>('');
+  const [selectedReportBatchId, setSelectedReportBatchId] = useState<string>('');
 
   const myQuizzes = quizzes.filter((q: Quiz) => q.collabSpaceId === currentUser?.collabSpaceId);
   const myBatches = batches.filter((b: Batch) => b.collabSpaceId === currentUser?.collabSpaceId);
@@ -604,104 +609,241 @@ export function AdministratorView({
 
       {view === 'reports' && (
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-2xl font-bold mb-4">Reports</h2>
-
-          <div className="mb-4 flex gap-2 items-center">
-            <select className="p-2 border rounded" onChange={() => { }} id="report-quiz-select" defaultValue="">
-              <option value="">Select Quiz</option>
-              {myQuizzes.map(q => <option key={q.id} value={q.id}>{q.name}</option>)}
-            </select>
-            <ReportPanel
-              quizzes={myQuizzes}
-              batches={myBatches}
-              quizAttempts={quizAttempts}
-              setCurrentAttempt={setCurrentAttempt}
-              setCurrentView={setCurrentView}
-            />
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-oxford-blue">Reports</h2>
+            {reportView !== 'quizzes' && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (reportView === 'students') {
+                    setReportView('batches');
+                    setSelectedReportBatchId('');
+                  } else if (reportView === 'batches') {
+                    setReportView('quizzes');
+                    setSelectedReportQuizId('');
+                  }
+                }}
+                className="px-4 py-2 rounded bg-oxford-blue/10 text-oxford-blue hover:bg-oxford-blue/20"
+              >
+                ← Back
+              </button>
+            )}
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
-// Report Panel Component - Nested helper component for the reports view
-function ReportPanel({
-  quizzes,
-  batches,
-  quizAttempts,
-  setCurrentAttempt,
-  setCurrentView
-}: {
-  quizzes: Quiz[];
-  batches: Batch[];
-  quizAttempts: QuizAttempt[];
-  setCurrentAttempt: (attempt: QuizAttempt) => void;
-  setCurrentView: (view: ViewType) => void;
-}) {
-  const [selectedQuizId, setSelectedQuizId] = useState<string>('');
-  const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
+          {/* Level 1: Quiz List */}
+          {reportView === 'quizzes' && (
+            <div className="space-y-3">
+              {myQuizzes.length === 0 ? (
+                <p className="text-gray-600">No quizzes created yet.</p>
+              ) : (
+                myQuizzes.map(quiz => {
+                  // Calculate completion status for this quiz across all batches
+                  const quizBatches = myBatches.filter(b => b.quizId === quiz.id);
+                  const totalStudents = quizBatches.reduce((sum, batch) => {
+                    return sum + myStudents.filter(s => s.batchId === batch.id).length;
+                  }, 0);
+                  const completedAttempts = quizAttempts.filter(
+                    a => a.quizId === quiz.id && a.finishedAt && quizBatches.some(b => b.id === a.batchId)
+                  ).length;
 
-  useEffect(() => {
-    if (quizzes.length && !selectedQuizId) {
-      setSelectedQuizId(quizzes[0].id);
-    }
-    if (batches.length && selectedBatchIds.length === 0) {
-      setSelectedBatchIds(batches.map((b: Batch) => b.id));
-    }
-  }, [quizzes, batches, selectedQuizId, selectedBatchIds.length]);
+                  let statusBadge = '';
+                  let statusColor = '';
+                  if (totalStudents === 0) {
+                    statusBadge = 'No Students';
+                    statusColor = 'bg-gray-100 text-gray-600';
+                  } else if (completedAttempts === 0) {
+                    statusBadge = 'Not Started';
+                    statusColor = 'bg-red-100 text-red-700';
+                  } else if (completedAttempts < totalStudents) {
+                    statusBadge = 'In Progress';
+                    statusColor = 'bg-yellow-100 text-yellow-700';
+                  } else {
+                    statusBadge = 'Completed';
+                    statusColor = 'bg-green-100 text-green-700';
+                  }
 
-  const attemptsFor = (quizId: string, batchIds: string[]) => {
-    return quizAttempts.filter(a => a.quizId === quizId && batchIds.includes(a.batchId) && a.finishedAt);
-  };
-
-  return (
-    <div className="w-full">
-      <div className="flex gap-2 mb-3 items-center">
-        <select className="p-2 border rounded" value={selectedQuizId} onChange={(e) => setSelectedQuizId(e.target.value)}>
-          {quizzes.map((q: Quiz) => <option key={q.id} value={q.id}>{q.name}</option>)}
-        </select>
-
-        <select multiple className="p-2 border rounded" value={selectedBatchIds} onChange={(e) => setSelectedBatchIds(Array.from(e.target.selectedOptions).map(o => o.value))} style={{ minWidth: 240 }}>
-          {batches.map((b: Batch) => <option key={b.id} value={b.id}>{b.schoolName}</option>)}
-        </select>
-      </div>
-
-      {selectedQuizId ? (
-        <div>
-          {selectedBatchIds.map((batchId: string) => {
-            const batch = batches.find((b: Batch) => b.id === batchId);
-            const attempts = attemptsFor(selectedQuizId, [batchId]);
-            const avg = attempts.length > 0 ? (attempts.reduce((s: number, a: QuizAttempt) => s + parseFloat(a.percentage.toString()), 0) / attempts.length).toFixed(2) : '0';
-            return (
-              <div key={batchId} className="p-3 border rounded mb-2">
-                <div className="flex justify-between items-center mb-2">
-                  <div>
-                    <div className="font-medium">{batch?.schoolName}</div>
-                    <div className="text-sm text-gray-600">Attempts: {attempts.length} | Avg: {avg}%</div>
-                  </div>
-                  <div />
-                </div>
-
-                <div className="space-y-1">
-                  {attempts.map((a: QuizAttempt) => (
-                    <div key={a.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                      <div>
-                        <div className="font-medium">{a.studentName}</div>
-                        <div className="text-xs text-gray-600">{new Date(a.startedAt).toLocaleString()}</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="font-medium">{a.score}/{a.total} ({a.percentage}%)</div>
-                        <button type="button" onClick={() => { setCurrentAttempt(a); setCurrentView(VIEWS.STUDENT_REVIEW); }} className="text-sm text-blue-600 hover:underline">Review</button>
+                  return (
+                    <div key={quiz.id} className="p-4 border border-oxford-blue/20 rounded hover:bg-oxford-blue/5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedReportQuizId(quiz.id);
+                              setReportView('batches');
+                            }}
+                            className="font-semibold text-lg text-oxford-blue hover:underline text-left"
+                          >
+                            {quiz.name}
+                          </button>
+                          <p className="text-sm text-gray-600">
+                            {quiz.subject} | {quiz.level} | {quiz.questionCount} questions | {quiz.duration} min
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {quizBatches.length} batch(es) | {totalStudents} student(s) | {completedAttempts} completed
+                          </p>
+                        </div>
+                        <span className={`px-3 py-1 rounded text-sm font-medium ${statusColor}`}>
+                          {statusBadge}
+                        </span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          {/* Level 2: Batch List for Selected Quiz */}
+          {reportView === 'batches' && selectedReportQuizId && (
+            <div className="space-y-3">
+              {(() => {
+                const selectedQuiz = myQuizzes.find(q => q.id === selectedReportQuizId);
+                const quizBatches = myBatches.filter(b => b.quizId === selectedReportQuizId);
+
+                return (
+                  <>
+                    <div className="mb-4 p-3 bg-oxford-blue/5 rounded">
+                      <h3 className="font-semibold text-oxford-blue">Quiz: {selectedQuiz?.name}</h3>
+                      <p className="text-sm text-gray-600">{quizBatches.length} batch(es)</p>
+                    </div>
+
+                    {quizBatches.length === 0 ? (
+                      <p className="text-gray-600">No batches assigned to this quiz.</p>
+                    ) : (
+                      quizBatches.map(batch => {
+                        const batchStudents = myStudents.filter(s => s.batchId === batch.id);
+                        const completedAttempts = quizAttempts.filter(
+                          a => a.quizId === selectedReportQuizId && a.batchId === batch.id && a.finishedAt
+                        ).length;
+
+                        let statusBadge = '';
+                        let statusColor = '';
+                        if (batchStudents.length === 0) {
+                          statusBadge = 'No Students';
+                          statusColor = 'bg-gray-100 text-gray-600';
+                        } else if (completedAttempts === 0) {
+                          statusBadge = 'Not Started';
+                          statusColor = 'bg-red-100 text-red-700';
+                        } else if (completedAttempts < batchStudents.length) {
+                          statusBadge = 'In Progress';
+                          statusColor = 'bg-yellow-100 text-yellow-700';
+                        } else {
+                          statusBadge = 'Completed';
+                          statusColor = 'bg-green-100 text-green-700';
+                        }
+
+                        return (
+                          <div key={batch.id} className="p-4 border border-oxford-blue/20 rounded hover:bg-oxford-blue/5">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedReportBatchId(batch.id);
+                                    setReportView('students');
+                                  }}
+                                  className="font-semibold text-lg text-oxford-blue hover:underline text-left"
+                                >
+                                  {batch.schoolName}
+                                </button>
+                                <p className="text-sm text-gray-600">
+                                  {batchStudents.length} student(s) | {completedAttempts} completed
+                                </p>
+                              </div>
+                              <span className={`px-3 py-1 rounded text-sm font-medium ${statusColor}`}>
+                                {statusBadge}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
+
+          {/* Level 3: Student List for Selected Batch */}
+          {reportView === 'students' && selectedReportBatchId && (
+            <div className="space-y-3">
+              {(() => {
+                const selectedQuiz = myQuizzes.find(q => q.id === selectedReportQuizId);
+                const selectedBatch = myBatches.find(b => b.id === selectedReportBatchId);
+                const batchStudents = myStudents.filter(s => s.batchId === selectedReportBatchId);
+
+                return (
+                  <>
+                    <div className="mb-4 p-3 bg-oxford-blue/5 rounded">
+                      <h3 className="font-semibold text-oxford-blue">Batch: {selectedBatch?.schoolName}</h3>
+                      <p className="text-sm text-gray-600">Quiz: {selectedQuiz?.name}</p>
+                      <p className="text-sm text-gray-600">{batchStudents.length} student(s)</p>
+                    </div>
+
+                    {batchStudents.length === 0 ? (
+                      <p className="text-gray-600">No students in this batch.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {batchStudents.map(student => {
+                          const attempt = getLatestFinishedAttempt(student.id, selectedReportQuizId, selectedReportBatchId);
+
+                          let statusBadge = '';
+                          let statusColor = '';
+                          if (!attempt) {
+                            statusBadge = 'Not Started';
+                            statusColor = 'bg-red-100 text-red-700';
+                          } else {
+                            statusBadge = 'Completed';
+                            statusColor = 'bg-green-100 text-green-700';
+                          }
+
+                          return (
+                            <div key={student.id} className="p-4 border border-oxford-blue/20 rounded bg-white">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <p className="font-semibold text-oxford-blue">{student.name}</p>
+                                  <p className="text-sm text-gray-600">
+                                    Username: <span className="font-mono font-medium">{student.username}</span> |
+                                    Password: <span className="font-mono font-medium">{student.password}</span>
+                                  </p>
+                                  {attempt && (
+                                    <p className="text-sm text-gray-600 mt-1">
+                                      Score: {attempt.score}/{attempt.total} ({attempt.percentage}%) |
+                                      Submitted: {new Date(attempt.finishedAt!).toLocaleString()}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <span className={`px-3 py-1 rounded text-sm font-medium ${statusColor}`}>
+                                    {statusBadge}
+                                  </span>
+                                  {attempt && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setCurrentAttempt(attempt);
+                                        setCurrentView(VIEWS.STUDENT_REVIEW);
+                                      }}
+                                      className="px-3 py-1 rounded bg-oxford-blue text-white hover:bg-oxford-blue/90 text-sm"
+                                    >
+                                      Review
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          )}
         </div>
-      ) : <div className="text-sm text-gray-600">Select a quiz to view reports.</div>}
+      )}
     </div>
   );
 }
