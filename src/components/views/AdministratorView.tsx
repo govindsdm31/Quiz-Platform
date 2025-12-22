@@ -18,7 +18,8 @@ import type {
   CSVUploadResult,
   StudentCreationResult
 } from '../../types';
-import { VIEWS } from '../../constants';
+import { generateUniqueUsername, generatePassword } from '../../utils/username';
+import { VIEWS, STUDENT_USERNAME_LENGTH, STUDENT_USERNAME_CHARS } from '../../constants';
 
 interface AdministratorViewProps {
   currentUser: User | null;
@@ -35,7 +36,7 @@ interface AdministratorViewProps {
   createBatch: (quizId: string, schoolName: string) => void;
   addStudentToBatch: (batchId: string, studentName: string) => StudentCreationResult;
   addExistingStudentToBatch: (batchId: string, studentId: string) => boolean;
-  createSupervisor: (username: string, password: string, batchIds: string[]) => void;
+  createSupervisor: (username: string, password: string, batchIds: string[], supervisorName?: string, schoolName?: string) => void;
   deleteBatch: (id: string) => void;
   deleteStudent: (id: string) => void;
   deleteSupervisor: (id: string) => void;
@@ -83,8 +84,9 @@ export function AdministratorView({
   const [batchForm, setBatchForm] = useState({ quizId: '', schoolName: '' });
   const [studentName, setStudentName] = useState('');
   const [selectedBatch, setSelectedBatch] = useState('');
-  const [supForm, setSupForm] = useState({ username: '', password: '', batchIds: [] });
+  const [supForm, setSupForm] = useState({ supervisorName: '', schoolName: '' });
   const [generatedCreds, setGeneratedCreds] = useState<any[]>([]);
+  const [supervisorGeneratedCreds, setSupervisorGeneratedCreds] = useState<any[]>([]);
   const [batchAddSelections, setBatchAddSelections] = useState<Record<string, string>>({});
   const [expandedBatches, setExpandedBatches] = useState<Record<string, boolean>>({});
   const [selectedQuestionSetId, setSelectedQuestionSetId] = useState<string | null>(null);
@@ -476,23 +478,88 @@ export function AdministratorView({
 
       {view === 'supervisors' && (
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-2xl font-bold mb-4">Supervisors</h2>
+          <h2 className="text-2xl font-bold mb-4 text-oxford-blue">Create Supervisor</h2>
 
           <div className="grid grid-cols-3 gap-2 mb-4">
-            <input type="text" placeholder="Username" className="p-2 border rounded" value={supForm.username} onChange={(e) => setSupForm({ ...supForm, username: e.target.value })} />
-            <input type="password" placeholder="Password" className="p-2 border rounded" value={supForm.password} onChange={(e) => setSupForm({ ...supForm, password: e.target.value })} />
-            <button type="button" onClick={() => { if (supForm.username && supForm.password) { createSupervisor(supForm.username, supForm.password, []); setSupForm({ username: '', password: '', batchIds: [] }); } }} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Create Supervisor</button>
+            <input
+              type="text"
+              placeholder="Supervisor Name *"
+              className="p-2 border rounded"
+              value={supForm.supervisorName}
+              onChange={(e) => setSupForm({ ...supForm, supervisorName: e.target.value })}
+            />
+            <input
+              type="text"
+              placeholder="School Name *"
+              className="p-2 border rounded"
+              value={supForm.schoolName}
+              onChange={(e) => setSupForm({ ...supForm, schoolName: e.target.value })}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                if (supForm.supervisorName && supForm.schoolName) {
+                  // Auto-generate credentials
+                  const allUsernames = [...supervisors.map(s => s.username), ...students.map(st => st.username)];
+                  const username = generateUniqueUsername(STUDENT_USERNAME_LENGTH, STUDENT_USERNAME_CHARS, allUsernames);
+                  const password = generatePassword();
+
+                  createSupervisor(username, password, [], supForm.supervisorName, supForm.schoolName);
+
+                  // Store generated credentials to show to admin
+                  setSupervisorGeneratedCreds([
+                    ...supervisorGeneratedCreds,
+                    {
+                      supervisorName: supForm.supervisorName,
+                      schoolName: supForm.schoolName,
+                      username,
+                      password
+                    }
+                  ]);
+
+                  setSupForm({ supervisorName: '', schoolName: '' });
+                }
+              }}
+              className="bg-oxford-blue text-white px-4 py-2 rounded hover:bg-oxford-blue/90 flex items-center gap-2"
+            >
+              <UserPlus size={20} /> Create Supervisor
+            </button>
           </div>
+
+          {supervisorGeneratedCreds.length > 0 && (
+            <div className="mb-4 p-4 bg-green-50 border border-green-300 rounded">
+              <p className="font-semibold mb-2 text-green-800">Generated Supervisor Credentials:</p>
+              {supervisorGeneratedCreds.map((c, i) => (
+                <div key={i} className="text-sm mb-1 p-2 bg-white rounded border border-green-200">
+                  <p className="font-medium text-oxford-blue">{c.supervisorName} ({c.schoolName})</p>
+                  <p className="text-gray-700">Username: <strong>{c.username}</strong> | Password: <strong>{c.password}</strong></p>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setSupervisorGeneratedCreds([])}
+                className="mt-2 text-sm text-oxford-blue hover:underline"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+
+          <h3 className="text-xl font-bold mb-3 text-oxford-blue">Existing Supervisors</h3>
 
           <div className="space-y-4">
             {mySupervisors.map(s => {
               const assigned = Array.isArray(s.batchIds) ? s.batchIds : [];
               return (
-                <div key={s.id} className="p-3 border rounded">
+                <div key={s.id} className="p-3 border border-oxford-blue/20 rounded bg-white">
                   <div className="flex items-center justify-between gap-4 mb-2">
                     <div>
-                      <p className="font-medium">{s.username}</p>
-                      <p className="text-sm text-gray-600">{assigned.length} assigned batch(es)</p>
+                      <p className="font-medium text-oxford-blue">
+                        {s.supervisorName || s.username}
+                        {s.supervisorName && <span className="text-sm text-gray-600 ml-2">({s.username})</span>}
+                      </p>
+                      {s.schoolName && <p className="text-sm text-gray-600">School: {s.schoolName}</p>}
+                      <p className="text-sm text-gray-500">{assigned.length} assigned batch(es)</p>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -501,24 +568,30 @@ export function AdministratorView({
                     </div>
                   </div>
 
-                  <div className="mt-2">
-                    <label className="text-sm font-medium mb-1 block">Assign Batches</label>
-                    <select
-                      multiple
-                      value={assigned}
-                      onChange={(e) => {
-                        const selected = Array.from(e.target.selectedOptions).map(o => o.value);
-                        assignBatchesToSupervisor(s.id, selected);
-                      }}
-                      className="w-full p-2 border rounded h-32"
-                      aria-label={`Assign batches to ${s.username}`}
-                    >
-                      {myBatches.map((b: Batch) => <option key={b.id} value={b.id}>{b.schoolName}</option>)}
-                    </select>
+                  <div className="mt-3">
+                    <label className="text-sm font-medium mb-2 block text-oxford-blue">Assign Batches (select multiple)</label>
+                    <div className="space-y-2 max-h-48 overflow-y-auto p-2 border border-oxford-blue/20 rounded bg-oxford-blue/5">
+                      {myBatches.map((b: Batch) => (
+                        <label key={b.id} className="flex items-center gap-2 p-2 hover:bg-oxford-blue/10 rounded cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={assigned.includes(b.id)}
+                            onChange={(e) => {
+                              const newAssigned = e.target.checked
+                                ? [...assigned, b.id]
+                                : assigned.filter((id: string) => id !== b.id);
+                              assignBatchesToSupervisor(s.id, newAssigned);
+                            }}
+                            className="w-4 h-4"
+                          />
+                          <span className="text-sm">{b.schoolName}</span>
+                        </label>
+                      ))}
+                    </div>
 
                     {assigned.length > 0 && (
-                      <div className="mt-2 text-sm text-gray-700">
-                        Assigned: {assigned.map((id: string) => myBatches.find((b: Batch) => b.id === id)?.schoolName).join(', ')}
+                      <div className="mt-2 text-sm text-gray-700 p-2 bg-selective-yellow/10 border border-selective-yellow rounded">
+                        <strong>Assigned:</strong> {assigned.map((id: string) => myBatches.find((b: Batch) => b.id === id)?.schoolName).join(', ')}
                       </div>
                     )}
                   </div>

@@ -392,7 +392,7 @@ const QuizPlatform = () => {
         return { username, password, id: newStudent.id };
     };
 
-    const createSupervisor = (username: string, password: string, batchIds: string[]) => {
+    const createSupervisor = (username: string, password: string, batchIds: string[], supervisorName?: string, schoolName?: string) => {
         const newSupervisor: Supervisor = {
             id: `sup-${Date.now()}`,
             username,
@@ -400,7 +400,9 @@ const QuizPlatform = () => {
             role: 'supervisor',
             batchIds: batchIds || [],
             active: true,
-            collabSpaceId: currentUser?.collabSpaceId
+            collabSpaceId: currentUser?.collabSpaceId,
+            ...(supervisorName && { supervisorName }),
+            ...(schoolName && { schoolName })
         };
 
         const updatedUsers = [...users, newSupervisor];
