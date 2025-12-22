@@ -11,7 +11,7 @@ interface OwnerViewProps {
   administrators: Administrator[];
   createCollabSpace: (name: string) => void;
   toggleCollabSpace: (id: string) => void;
-  createAdministrator: (username: string, password: string, spaceId: string) => void;
+  createAdministrator: (username: string, password: string, spaceId: string, label?: string, address?: string, logoUrl?: string) => void;
   toggleAdministrator: (id: string) => void;
 }
 
@@ -24,13 +24,13 @@ export function OwnerView({
   toggleAdministrator
 }: OwnerViewProps) {
   const [newSpaceName, setNewSpaceName] = useState('');
-  const [newAdminForm, setNewAdminForm] = useState({ username: '', password: '', spaceId: '' });
+  const [newAdminForm, setNewAdminForm] = useState({ username: '', password: '', spaceId: '', label: '', address: '', logoUrl: '' });
 
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-          <Settings className="text-blue-600" />
+        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2 text-oxford-blue">
+          <Settings className="text-oxford-blue" />
           Collaboration Spaces
         </h2>
         <div className="flex gap-2 mb-4">
@@ -49,7 +49,7 @@ export function OwnerView({
                 setNewSpaceName('');
               }
             }}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2"
+            className="bg-oxford-blue text-white px-4 py-2 rounded hover:bg-oxford-blue/90 flex items-center gap-2"
           >
             <Plus size={20} /> Create Space
           </button>
@@ -71,11 +71,11 @@ export function OwnerView({
       </div>
 
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-          <Users className="text-purple-600" />
+        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2 text-oxford-blue">
+          <Users className="text-oxford-blue" />
           Administrators
         </h2>
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="grid grid-cols-2 gap-2 mb-4">
           <input
             type="text"
             placeholder="Username"
@@ -100,16 +100,37 @@ export function OwnerView({
               <option key={space.id} value={space.id}>{space.name}</option>
             ))}
           </select>
+          <input
+            type="text"
+            placeholder="Organization Label (optional)"
+            className="p-2 border rounded"
+            value={newAdminForm.label}
+            onChange={(e) => setNewAdminForm({ ...newAdminForm, label: e.target.value })}
+          />
+          <input
+            type="text"
+            placeholder="Address (optional)"
+            className="p-2 border rounded col-span-2"
+            value={newAdminForm.address}
+            onChange={(e) => setNewAdminForm({ ...newAdminForm, address: e.target.value })}
+          />
+          <input
+            type="text"
+            placeholder="Logo URL (optional)"
+            className="p-2 border rounded col-span-2"
+            value={newAdminForm.logoUrl}
+            onChange={(e) => setNewAdminForm({ ...newAdminForm, logoUrl: e.target.value })}
+          />
         </div>
         <button
           type="button"
           onClick={() => {
             if (newAdminForm.username && newAdminForm.password && newAdminForm.spaceId) {
-              createAdministrator(newAdminForm.username, newAdminForm.password, newAdminForm.spaceId);
-              setNewAdminForm({ username: '', password: '', spaceId: '' });
+              createAdministrator(newAdminForm.username, newAdminForm.password, newAdminForm.spaceId, newAdminForm.label, newAdminForm.address, newAdminForm.logoUrl);
+              setNewAdminForm({ username: '', password: '', spaceId: '', label: '', address: '', logoUrl: '' });
             }
           }}
-          className="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 mb-4 flex items-center gap-2"
+          className="bg-oxford-blue text-white px-4 py-2 rounded hover:bg-oxford-blue/90 mb-4 flex items-center gap-2"
         >
           <Plus size={20} /> Create Administrator
         </button>

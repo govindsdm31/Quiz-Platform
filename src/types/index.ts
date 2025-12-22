@@ -44,19 +44,24 @@ export interface Student extends User {
 }
 
 /**
- * Supervisor extends User with batchIds array
+ * Supervisor extends User with batchIds array and school name
  */
 export interface Supervisor extends User {
   role: 'supervisor';
   batchIds: string[];
+  supervisorName?: string; // Real name of the supervisor
+  schoolName?: string; // School they belong to
 }
 
 /**
- * Administrator extends User with collabSpaceId
+ * Administrator extends User with collabSpaceId and branding
  */
 export interface Administrator extends User {
   role: 'administrator';
   collabSpaceId: string;
+  label?: string; // Organization/brand label
+  address?: string; // Organization address
+  logoUrl?: string; // Organization logo URL or data URI
 }
 
 /**
@@ -67,6 +72,8 @@ export interface CollabSpace {
   name: string;
   active: boolean;
   createdAt: string;
+  logoUrl?: string; // Logo for this collaboration space
+  label?: string; // Display label for the space
 }
 
 /**

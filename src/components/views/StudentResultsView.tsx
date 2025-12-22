@@ -26,10 +26,10 @@ export function StudentResultsView({
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <h2 className="text-2xl font-bold mb-4">My Results</h2>
+      <h2 className="text-2xl font-bold mb-4 text-oxford-blue">My Results</h2>
 
       {attempts.length === 0 && (
-        <div className="p-4 bg-yellow-50 border rounded text-sm text-gray-700">
+        <div className="p-4 bg-selective-yellow/10 border border-selective-yellow rounded text-sm text-gray-700">
           No attempts found yet.
         </div>
       )}
@@ -38,9 +38,9 @@ export function StudentResultsView({
         {attempts.map(a => {
           const quiz = quizzes.find(q => q.id === a.quizId);
           return (
-            <div key={a.id} className="p-3 border rounded flex justify-between items-center">
+            <div key={a.id} className="p-3 border border-oxford-blue/20 rounded bg-oxford-blue/5 flex justify-between items-center hover:bg-oxford-blue/10 transition-colors">
               <div>
-                <p className="font-medium">{quiz?.name || 'Quiz'}</p>
+                <p className="font-medium text-oxford-blue">{quiz?.name || 'Quiz'}</p>
                 <p className="text-sm text-gray-600">Score: {a.score}/{a.total} – {a.percentage}%</p>
                 <p className="text-sm text-gray-500">Started: {new Date(a.startedAt).toLocaleString()}</p>
                 {a.finishedAt && <p className="text-sm text-gray-500">Finished: {new Date(a.finishedAt).toLocaleString()}</p>}
@@ -49,7 +49,7 @@ export function StudentResultsView({
                 <button type="button" onClick={() => {
                   setCurrentAttempt(a);
                   setCurrentView(VIEWS.STUDENT_REVIEW);
-                }} className="text-sm text-blue-600 hover:underline">Review</button>
+                }} className="text-sm bg-oxford-blue text-white px-3 py-1 rounded hover:bg-oxford-blue/90">Review</button>
               </div>
             </div>
           );

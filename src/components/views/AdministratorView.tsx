@@ -96,17 +96,17 @@ export function AdministratorView({
   return (
     <div className="space-y-6">
       <div className="flex gap-2 mb-4 flex-wrap">
-        <button type="button" onClick={() => setView('questions')} className={`px-4 py-2 rounded ${view === 'questions' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Questions</button>
-        <button type="button" onClick={() => setView('quizzes')} className={`px-4 py-2 rounded ${view === 'quizzes' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Quizzes</button>
-        <button type="button" onClick={() => setView('batches')} className={`px-4 py-2 rounded ${view === 'batches' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Batches</button>
-        <button type="button" onClick={() => setView('students')} className={`px-4 py-2 rounded ${view === 'students' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Students</button>
-        <button type="button" onClick={() => setView('supervisors')} className={`px-4 py-2 rounded ${view === 'supervisors' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Supervisors</button>
-        <button type="button" onClick={() => setView('reports')} className={`px-4 py-2 rounded ${view === 'reports' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>Reports</button>
+        <button type="button" onClick={() => setView('questions')} className={`px-4 py-2 rounded ${view === 'questions' ? 'bg-oxford-blue text-white' : 'bg-oxford-blue/10 text-oxford-blue hover:bg-oxford-blue/20'}`}>Questions</button>
+        <button type="button" onClick={() => setView('quizzes')} className={`px-4 py-2 rounded ${view === 'quizzes' ? 'bg-oxford-blue text-white' : 'bg-oxford-blue/10 text-oxford-blue hover:bg-oxford-blue/20'}`}>Quizzes</button>
+        <button type="button" onClick={() => setView('batches')} className={`px-4 py-2 rounded ${view === 'batches' ? 'bg-oxford-blue text-white' : 'bg-oxford-blue/10 text-oxford-blue hover:bg-oxford-blue/20'}`}>Batches</button>
+        <button type="button" onClick={() => setView('students')} className={`px-4 py-2 rounded ${view === 'students' ? 'bg-oxford-blue text-white' : 'bg-oxford-blue/10 text-oxford-blue hover:bg-oxford-blue/20'}`}>Students</button>
+        <button type="button" onClick={() => setView('supervisors')} className={`px-4 py-2 rounded ${view === 'supervisors' ? 'bg-oxford-blue text-white' : 'bg-oxford-blue/10 text-oxford-blue hover:bg-oxford-blue/20'}`}>Supervisors</button>
+        <button type="button" onClick={() => setView('reports')} className={`px-4 py-2 rounded ${view === 'reports' ? 'bg-oxford-blue text-white' : 'bg-oxford-blue/10 text-oxford-blue hover:bg-oxford-blue/20'}`}>Reports</button>
       </div>
 
       {view === 'questions' && (
         <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-2xl font-bold mb-4">Question Bank</h2>
+          <h2 className="text-2xl font-bold mb-4 text-oxford-blue">Question Bank</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-4 items-start">
             <input
               type="text"
@@ -157,7 +157,7 @@ export function AdministratorView({
                   const inp = document.getElementById('questions-csv-input') as HTMLInputElement | null;
                   inp?.click();
                 }}
-                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2"
+                className="bg-oxford-blue text-white px-4 py-2 rounded hover:bg-oxford-blue/90 flex items-center gap-2"
               >
                 <Download size={16} /> Upload CSV
               </button>

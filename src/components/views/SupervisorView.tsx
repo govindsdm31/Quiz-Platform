@@ -51,7 +51,7 @@ export function SupervisorView({
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-2xl font-bold mb-4">My Batches</h2>
+        <h2 className="text-2xl font-bold mb-4 text-oxford-blue">My Batches</h2>
         <div className="space-y-4">
           {myBatches.length === 0 && (
             <div className="p-4 border rounded bg-yellow-50 text-gray-700">
@@ -74,11 +74,11 @@ export function SupervisorView({
 
                   <div className="flex gap-2">
                     {!batch.activeQuizId ? (
-                      <button type="button" onClick={() => startQuiz(batch.id)} className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 flex items-center gap-2">
+                      <button type="button" onClick={() => startQuiz(batch.id)} className="bg-oxford-blue text-white px-4 py-2 rounded hover:bg-oxford-blue/90 flex items-center gap-2">
                         <Play size={16} /> Start Quiz
                       </button>
                     ) : (
-                      <button type="button" onClick={() => stopQuiz(batch.id)} className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 flex items-center gap-2">
+                      <button type="button" onClick={() => stopQuiz(batch.id)} className="bg-selective-yellow text-oxford-blue px-4 py-2 rounded hover:bg-selective-yellow/90 font-semibold flex items-center gap-2">
                         <Square size={16} /> Stop Quiz
                       </button>
                     )}
@@ -120,7 +120,7 @@ export function SupervisorView({
                           ) : <div className="text-sm text-gray-600">–</div>}
                           {batch.activeQuizId && (() => {
                             const attempt = getLatestFinishedAttempt(s.id, batch.activeQuizId, batch.id);
-                            return attempt ? <button type="button" onClick={() => { setCurrentAttempt(attempt); setCurrentView(VIEWS.STUDENT_REVIEW); }} className="text-sm text-blue-600 hover:underline">Review</button> : null;
+                            return attempt ? <button type="button" onClick={() => { setCurrentAttempt(attempt); setCurrentView(VIEWS.STUDENT_REVIEW); }} className="text-sm bg-oxford-blue text-white px-2 py-1 rounded hover:bg-oxford-blue/90">Review</button> : null;
                           })()}
                         </div>
                       </div>
@@ -145,7 +145,7 @@ export function SupervisorView({
                       alert('Student added to batch');
                       setAddSelection(prev => ({ ...prev, [batch.id]: '' }));
                     }
-                  }} className="px-3 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">Add</button>
+                  }} className="px-3 py-1 rounded bg-oxford-blue text-white hover:bg-oxford-blue/90">Add</button>
 
                   {/* New student creation (supervisor) */}
                   <input placeholder="New student name" className="p-2 border rounded" value={newStudentName[batch.id] || ''} onChange={(e) => setNewStudentName(prev => ({ ...prev, [batch.id]: e.target.value }))} />
@@ -155,7 +155,7 @@ export function SupervisorView({
                     const creds = addStudentToBatch(batch.id, name);
                     setNewStudentName(prev => ({ ...prev, [batch.id]: '' }));
                     alert(`Created student ${name}: ${creds.username} / ${creds.password}`);
-                  }} className="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700">Create & Add</button>
+                  }} className="px-3 py-1 rounded bg-oxford-blue text-white hover:bg-oxford-blue/90">Create & Add</button>
                 </div>
 
                 {batchAttempts.length > 0 && (

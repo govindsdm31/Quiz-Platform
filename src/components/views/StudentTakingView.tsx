@@ -128,18 +128,18 @@ export function StudentTakingView({
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">Taking: {quiz?.name}</h2>
-        <div className="text-sm text-gray-700 flex items-center gap-2">
+        <h2 className="text-2xl font-bold text-oxford-blue">Taking: {quiz?.name}</h2>
+        <div className="text-sm bg-selective-yellow text-oxford-blue px-3 py-2 rounded font-semibold flex items-center gap-2">
           <Clock /> <span>{formatTime(remaining)}</span>
         </div>
       </div>
 
-      <div className="p-4 border rounded space-y-4">
-        <div className="mb-2 text-sm text-gray-600">Question {index + 1} of {questionList.length}</div>
+      <div className="p-4 border border-oxford-blue/20 rounded bg-oxford-blue/5 space-y-4">
+        <div className="mb-2 text-sm text-oxford-blue font-medium">Question {index + 1} of {questionList.length}</div>
 
         {currentQuestion ? (
           <>
-            <p className="font-medium mb-2">{currentQuestion.question}</p>
+            <p className="font-medium mb-2 text-oxford-blue">{currentQuestion.question}</p>
             <div className="space-y-2">
               {currentQuestion.options.map((opt: string, i: number) => {
                 const curAns = currentAttempt.answers.find((a: any) => a.questionId === currentQuestion.id);
@@ -149,7 +149,7 @@ export function StudentTakingView({
                     type="button"
                     key={i}
                     onClick={() => setAnswer(currentQuestion.id, i)}
-                    className={`w-full text-left p-3 border rounded ${selected ? 'bg-blue-600 text-white' : 'bg-gray-50 hover:bg-gray-100'}`}
+                    className={`w-full text-left p-3 border rounded ${selected ? 'bg-oxford-blue text-white border-oxford-blue' : 'bg-white hover:bg-oxford-blue/10 border-oxford-blue/20'}`}
                   >
                     {opt}
                   </button>
@@ -168,7 +168,7 @@ export function StudentTakingView({
             type="button"
             onClick={() => setIndex(i => Math.max(0, i - 1))}
             disabled={index === 0}
-            className={`px-4 py-2 rounded ${index === 0 ? 'bg-gray-200 text-gray-500' : 'bg-gray-200 hover:bg-gray-300'}`}
+            className={`px-4 py-2 rounded ${index === 0 ? 'bg-gray-200 text-gray-500' : 'bg-oxford-blue/20 hover:bg-oxford-blue/30 text-oxford-blue'}`}
           >
             Previous
           </button>
@@ -176,7 +176,7 @@ export function StudentTakingView({
             type="button"
             onClick={() => setIndex(i => Math.min(questionList.length - 1, i + 1))}
             disabled={index === questionList.length - 1}
-            className={`px-4 py-2 rounded ${index === questionList.length - 1 ? 'bg-gray-200 text-gray-500' : 'bg-gray-200 hover:bg-gray-300'}`}
+            className={`px-4 py-2 rounded ${index === questionList.length - 1 ? 'bg-gray-200 text-gray-500' : 'bg-oxford-blue/20 hover:bg-oxford-blue/30 text-oxford-blue'}`}
           >
             Next
           </button>
@@ -192,7 +192,7 @@ export function StudentTakingView({
                 submitAttempt();
               }
             }}
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+            className="bg-selective-yellow text-oxford-blue px-4 py-2 rounded hover:bg-selective-yellow/90 font-semibold"
           >
             Submit Quiz
           </button>
